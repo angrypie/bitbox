@@ -11,8 +11,9 @@ import (
 )
 
 type Bitbox struct {
-	started bool
-	nodes   int32
+	started     bool
+	numberNodes int
+	nodes       []*bitcoindNode
 }
 
 func statusResp(status bool, msg string) (*api.StatusResponse, error) {
@@ -23,32 +24,58 @@ func statusResp(status bool, msg string) (*api.StatusResponse, error) {
 }
 
 func (b *Bitbox) Start(ctx context.Context, req *api.StartRequest) (*api.StatusResponse, error) {
-	nodes := req.GetNodes()
+	//TODO chekc is it safe
+	nodes := int(req.GetNodes())
 	if nodes < 1 {
 		return statusResp(false, "Number of nodes should be greater than 0")
 	}
 	b.started = true
-	b.nodes = nodes
-	return nil, nil
+	b.numberNodes = nodes
+
+	for i := 0; i < int(nodes); i++ {
+		node := startNode(i)
+		b.nodes = append(b.nodes, node)
+	}
+
+	return statusResp(true, "Success")
 }
 
 func (b *Bitbox) Stop(ctx context.Context, req *api.Empty) (*api.StatusResponse, error) {
-	return nil, nil
+	//Stop all nodes
+	for _, node := range b.nodes {
+		node.Stop()
+	}
+	return statusResp(true, "Success")
 }
 
 func (b *Bitbox) Generate(ctx context.Context, req *api.GenerateRequest) (*api.StatusResponse, error) {
-	return nil, nil
+	nodeIndex := int(req.GetNode())
+	blocks := int(req.GetBlocks())
+
+	node := b.nodes[nodeIndex]
+	if err := node.Command("generate", strconv.Itoa(blocks)); err != nil {
+		return statusResp(false, err.Error())
+	}
+
+	return statusResp(true, "Success")
 }
 
 func (b *Bitbox) Send(ctx context.Context, req *api.SendRequest) (*api.StatusResponse, error) {
-	return nil, nil
+	nodeIndex := int(req.GetNode())
+	amount := strconv.FormatFloat(req.GetAmount(), 'f', -1, 32)
+	address := req.GetAddress()
+
+	node := b.nodes[nodeIndex]
+	if err := node.Command("sendtoaddress", address, amount); err != nil {
+		return statusResp(false, err.Error())
+	}
+
+	return statusResp(true, "Success")
 }
 
 func main() {
 	server := grpc.NewServer()
 	api.RegisterBitboxServer(server, &Bitbox{})
-	n4 := startNode(4)
-	defer n4.Stop()
 }
 
 func startNode(index int) *bitcoindNode {
@@ -98,15 +125,12 @@ func (bn *bitcoindNode) Start() error {
 }
 
 func (bn *bitcoindNode) Stop() {
-	log.Println("STOP")
-	defer bn.Command("stop")
-	defer exec.Command("rm", "-r", bn.datadir).Run()
+	bn.Command("stop")
+	exec.Command("rm", "-r", bn.datadir).Run()
 }
 
 func (bn *bitcoindNode) Command(cmd ...string) error {
 	args := append([]string{}, "-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test")
 	full := append(args, cmd...)
-	log.Println(full)
-	return exec.Command(
-		"bitcoin-cli", full...).Run()
+	return exec.Command("bitcoin-cli", full...).Run()
 }

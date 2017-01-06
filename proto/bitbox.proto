@@ -35,7 +35,7 @@ message SendRequest {
 	// bitcoin address
 	string address = 2;
 	// bitcoin to spend
-	float amount = 3;
+	double amount = 3;
 }
 
 message Empty {}
