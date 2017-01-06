@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package angrypie.bitbox;
+
+service Bitbox {
+	rpc Start(StartRequest) returns (StatusResponse) {}
+	rpc Generate(GenerateRequest) returns (StatusResponse) {}
+	rpc Send(SendRequest) returns (StatusResponse) {}
+	rpc Stop(Empty) returns (StatusResponse) {}
+}
+
+
+message StartRequest {
+	// Number of bicoind nodes to be started
+	int32 nodes = 1;
+}
+
+message StatusResponse {
+	// Number of bicoind nodes to be started
+	bool status = 1;
+	string msg = 2;
+}
+
+message GenerateRequest {
+	// Id of bicoind node
+	int32 node = 1;
+	// Number of block 
+	int32 blocks = 2;
+
+}
+
+message SendRequest {
+	// Id of bicoind node
+	int32 node = 1;
+	// bitcoin address
+	string address = 2;
+	// bitcoin to spend
+	float amount = 3;
+}
+
+message Empty {}
