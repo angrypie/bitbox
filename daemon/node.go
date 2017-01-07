@@ -1,10 +1,7 @@
 package main
 
 import (
-	//"github.com/btcsuite/btcd/chaincfg"
-	//"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcrpcclient"
-	//"github.com/btcsuite/btcutil"
 	"log"
 	"os/exec"
 	"strconv"
@@ -57,13 +54,11 @@ func startNode(index int) *bitcoindNode {
 	err := node.Command("getinfo")
 	if err != nil {
 		node.Command("stop")
-		time.Sleep(time.Second)
 		node.Start()
 		for {
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 			err := node.Command("getinfo")
 			if err != nil {
-				log.Println("Node ", index, ": getinfo:\n", err)
 				continue
 			}
 			break
@@ -79,6 +74,5 @@ func startNode(index int) *bitcoindNode {
 		log.Println("Rpc client not connected to node ", index)
 	}
 	node.client = client
-	//defer client.Shutdown()
 	return node
 }
