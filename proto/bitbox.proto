@@ -7,6 +7,8 @@ service Bitbox {
 	rpc Generate(GenerateRequest) returns (StatusResponse) {}
 	rpc Send(SendRequest) returns (StatusResponse) {}
 	rpc Stop(Empty) returns (StatusResponse) {}
+	rpc Balance(Empty) returns (BalanceResponse) {}
+
 }
 
 
@@ -16,7 +18,6 @@ message StartRequest {
 }
 
 message StatusResponse {
-	// Number of bicoind nodes to be started
 	bool status = 1;
 	string msg = 2;
 }
@@ -36,6 +37,10 @@ message SendRequest {
 	string address = 2;
 	// bitcoin to spend
 	double amount = 3;
+}
+
+message BalanceResponse {
+	double balance = 1;
 }
 
 message Empty {}
