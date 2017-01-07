@@ -5,6 +5,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
+	"net"
 	"os/exec"
 	"strconv"
 	"time"
@@ -74,8 +75,20 @@ func (b *Bitbox) Send(ctx context.Context, req *api.SendRequest) (*api.StatusRes
 }
 
 func main() {
+	Start(10000)
+	<-make(chan bool)
+}
+
+func Start(port int) *grpc.Server {
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+
+	if err != nil {
+		log.Fatal("failed to listen: ", port)
+	}
 	server := grpc.NewServer()
 	api.RegisterBitboxServer(server, &Bitbox{})
+	go server.Serve(lis)
+	return server
 }
 
 func startNode(index int) *bitcoindNode {
