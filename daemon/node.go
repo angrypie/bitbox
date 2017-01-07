@@ -44,10 +44,12 @@ func (bn *bitcoindNode) Command(cmd ...string) error {
 
 func startNode(index int) *bitcoindNode {
 	//run bitcoin test box
-	datadir := strconv.Itoa(index)
+	strIndex := strconv.Itoa(index)
+	datadir := "bitbox" + strIndex
+	//TODO: dynamic port sesection
 	node := &bitcoindNode{
 		index: index, datadir: datadir,
-		port: "190" + datadir + "0", rpcport: "190" + datadir + "1",
+		port: "190" + strIndex + "0", rpcport: "190" + strIndex + "1",
 	}
 
 	exec.Command("mkdir", datadir).Run()

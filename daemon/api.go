@@ -73,6 +73,26 @@ func (b *Bitbox) Send(ctx context.Context, req *api.SendRequest) (*api.StatusRes
 	return statusResp(true, hash.String())
 }
 
-func (b *Bitbox) Balance(ctx context.Context, req *api.Empty) (*api.BalanceResponse, error) {
-	return &api.BalanceResponse{Balance: 0.0001}, nil
+func (b *Bitbox) Balance(ctx context.Context, req *api.NodeRequest) (*api.BalanceResponse, error) {
+	nodeIndex := int(req.GetNode())
+	node := b.nodes[nodeIndex]
+
+	amount, err := node.client.GetBalance("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.BalanceResponse{Balance: amount.ToBTC()}, nil
+}
+
+func (b *Bitbox) Address(ctx context.Context, req *api.NodeRequest) (*api.AddressResponse, error) {
+	nodeIndex := int(req.GetNode())
+	node := b.nodes[nodeIndex]
+
+	address, err := node.client.GetNewAddress("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.AddressResponse{Address: address.String()}, nil
 }

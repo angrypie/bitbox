@@ -7,7 +7,8 @@ service Bitbox {
 	rpc Generate(GenerateRequest) returns (StatusResponse) {}
 	rpc Send(SendRequest) returns (StatusResponse) {}
 	rpc Stop(Empty) returns (StatusResponse) {}
-	rpc Balance(Empty) returns (BalanceResponse) {}
+	rpc Balance(NodeRequest) returns (BalanceResponse) {}
+	rpc Address(NodeRequest) returns (AddressResponse) {}
 
 }
 
@@ -30,6 +31,11 @@ message GenerateRequest {
 
 }
 
+message NodeRequest {
+	// node index
+	int32 node = 1;
+}
+
 message SendRequest {
 	// Id of bicoind node
 	int32 node = 1;
@@ -41,6 +47,11 @@ message SendRequest {
 
 message BalanceResponse {
 	double balance = 1;
+
+}
+
+message AddressResponse {
+	string address = 1;
 }
 
 message Empty {}
