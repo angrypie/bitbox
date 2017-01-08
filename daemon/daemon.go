@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	api "github.com/angrypie/bitbox/proto"
@@ -12,11 +12,6 @@ type Bitbox struct {
 	started     bool
 	numberNodes int
 	nodes       []*bitcoindNode
-}
-
-func main() {
-	Start(10000)
-	<-make(chan bool)
 }
 
 func Start(port int) *grpc.Server {

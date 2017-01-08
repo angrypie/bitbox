@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	api "github.com/angrypie/bitbox/proto"
