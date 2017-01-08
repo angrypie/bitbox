@@ -17,11 +17,16 @@ type bitcoindNode struct {
 }
 
 func (bn *bitcoindNode) Start() error {
-	return exec.Command(
-		"bitcoind", "-regtest", "-daemon",
+	opts := append([]string{}, "-regtest", "-daemon",
 		"-datadir="+bn.datadir, "-port="+bn.port,
 		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
-	).Run()
+	)
+
+	if bn.index > 0 {
+		opts = append(opts, "-connect=127.0.0.1:19000")
+	}
+
+	return exec.Command("bitcoind", opts...).Run()
 }
 
 func (bn *bitcoindNode) Stop() {
@@ -54,11 +59,13 @@ func startNode(index int) *bitcoindNode {
 	err := node.Command("getinfo")
 	if err != nil {
 		node.Command("stop")
+		time.Sleep(time.Millisecond * 100)
 		node.Start()
 		for {
 			time.Sleep(time.Millisecond * 100)
 			err := node.Command("getinfo")
 			if err != nil {
+				log.Println(err)
 				continue
 			}
 			break
