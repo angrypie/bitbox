@@ -17,6 +17,8 @@ type bitcoindNode struct {
 }
 
 func (bn *bitcoindNode) Start() error {
+	//TODO
+	zmqaddress := "127.0.0.1:28333"
 	opts := append([]string{}, "-regtest", "-daemon",
 		"-datadir="+bn.datadir, "-port="+bn.port,
 		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
@@ -24,6 +26,13 @@ func (bn *bitcoindNode) Start() error {
 
 	if bn.index > 0 {
 		opts = append(opts, "-connect=127.0.0.1:19000")
+	} else {
+		opts = append(opts,
+			"-zmqpubhashtx=tcp://"+zmqaddress,
+			"-zmqpubhashblock=tcp://"+zmqaddress,
+			"-zmqpubrawblock=tcp://"+zmqaddress,
+			"-zmqpubrawtx=tcp://"+zmqaddress,
+		)
 	}
 
 	return exec.Command("bitcoind", opts...).Run()
