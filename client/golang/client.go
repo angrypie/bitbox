@@ -3,12 +3,18 @@ package bitbox
 import (
 	"context"
 	"errors"
+	"github.com/angrypie/bitbox/daemon"
 	proto "github.com/angrypie/bitbox/proto"
 	"google.golang.org/grpc"
 )
 
 type Client struct {
 	api proto.BitboxClient
+}
+
+// Method only for go package because daemon writen in Golang
+func StartDaemon(port int) *grpc.Server {
+	return daemon.Start(port)
 }
 
 func New(addr string) (*Client, error) {
