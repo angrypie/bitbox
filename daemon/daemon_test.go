@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	api "github.com/angrypie/bitbox/proto"
+	proto "github.com/angrypie/bitbox/proto"
 	"google.golang.org/grpc"
 	"testing"
 	"time"
@@ -20,10 +20,10 @@ func TestDaemon(t *testing.T) {
 	if err != nil {
 		t.Error("Cannt connect to daemon", err)
 	}
-	client := api.NewBitboxClient(conn)
+	client := proto.NewBitboxClient(conn)
 
 	// Run 2 bitcoin nodes
-	status, err := client.Start(context.Background(), &api.StartRequest{Nodes: 2})
+	status, err := client.Start(context.Background(), &proto.StartRequest{Nodes: 2})
 	if err != nil {
 		t.Error("Start rpc: ", err)
 	}
@@ -32,7 +32,7 @@ func TestDaemon(t *testing.T) {
 	}
 
 	// Generate 102 blocks to earn btc for test
-	status, err = client.Generate(context.Background(), &api.GenerateRequest{Node: 0, Blocks: 102})
+	status, err = client.Generate(context.Background(), &proto.GenerateRequest{Node: 0, Blocks: 102})
 	if err != nil {
 		t.Error("Generate rpc: ", err)
 	}
@@ -42,12 +42,12 @@ func TestDaemon(t *testing.T) {
 	}
 
 	// Check if node1 receive btc
-	beforeBalance, err := client.Balance(context.Background(), &api.NodeRequest{Node: 1})
+	beforeBalance, err := client.Balance(context.Background(), &proto.NodeRequest{Node: 1})
 	if err != nil {
 		t.Error("Balance rpc: ", err)
 	}
 	// Generate addres for node1
-	addrResp, err := client.Address(context.Background(), &api.NodeRequest{Node: 1})
+	addrResp, err := client.Address(context.Background(), &proto.NodeRequest{Node: 1})
 	if err != nil {
 		t.Error("Address rpc: ", err)
 	}
@@ -58,7 +58,7 @@ func TestDaemon(t *testing.T) {
 
 	// Send btc to node1
 	var sendToNode1Amount float64 = 0.1
-	status, err = client.Send(context.Background(), &api.SendRequest{
+	status, err = client.Send(context.Background(), &proto.SendRequest{
 		Node: 0, Amount: sendToNode1Amount, Address: addrResp.GetAddress(),
 	})
 	if err != nil {
@@ -69,12 +69,12 @@ func TestDaemon(t *testing.T) {
 	}
 
 	// Generate new block to confirm transaction
-	client.Generate(context.Background(), &api.GenerateRequest{Node: 0, Blocks: 1})
+	client.Generate(context.Background(), &proto.GenerateRequest{Node: 0, Blocks: 1})
 	delay()
 
 	// Check if node1 receive btc
 	for i, exit := 0, false; !exit; i++ {
-		afterBalance, err := client.Balance(context.Background(), &api.NodeRequest{Node: 1})
+		afterBalance, err := client.Balance(context.Background(), &proto.NodeRequest{Node: 1})
 		if err != nil {
 			t.Error("Balance rpc: ", err)
 		}
@@ -93,7 +93,7 @@ func TestDaemon(t *testing.T) {
 	}
 
 	// Stop bitcoind nodes
-	status, err = client.Stop(context.Background(), &api.Empty{})
+	status, err = client.Stop(context.Background(), &proto.Empty{})
 	if err != nil {
 		t.Error("Status rpc: ", err)
 	}
