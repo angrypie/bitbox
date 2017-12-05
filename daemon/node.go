@@ -1,11 +1,12 @@
 package daemon
 
 import (
-	"github.com/btcsuite/btcrpcclient"
 	"log"
 	"os/exec"
 	"strconv"
 	"time"
+
+	"github.com/btcsuite/btcd/rpcclient"
 )
 
 type bitcoindNode struct {
@@ -13,7 +14,7 @@ type bitcoindNode struct {
 	datadir string
 	port    string
 	rpcport string
-	client  *btcrpcclient.Client
+	client  *rpcclient.Client
 }
 
 func (bn *bitcoindNode) Start() error {
@@ -81,8 +82,8 @@ func startNode(index int) *bitcoindNode {
 		}
 	}
 
-	client, err := btcrpcclient.New(
-		&btcrpcclient.ConnConfig{
+	client, err := rpcclient.New(
+		&rpcclient.ConnConfig{
 			Host: "localhost:" + node.rpcport, User: "test", Pass: "test",
 			HTTPPostMode: true, DisableTLS: true,
 		}, nil)

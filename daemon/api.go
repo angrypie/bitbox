@@ -65,7 +65,8 @@ func (b *Bitbox) Send(ctx context.Context, req *api.SendRequest) (*api.StatusRes
 	}
 
 	node := b.nodes[nodeIndex]
-	hash, err := node.client.SendFrom("", addr, amount)
+	result := node.client.SendFromAsync("", addr, amount)
+	hash, err := result.Receive()
 	if err != nil {
 		return statusResp(false, err.Error())
 	}
