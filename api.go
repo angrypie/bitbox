@@ -97,6 +97,6 @@ func (b *Bitbox) GetRawTransaction(txHash string) (result *btcutil.Tx, err error
 	if err != nil {
 		return nil, err
 	}
-	//log.Println(Tx.Hash().String())
+
 	return transaction, nil
 }
