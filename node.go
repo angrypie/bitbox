@@ -33,6 +33,7 @@ func (bn *bitcoindNode) StartDaemon() error {
 			"-zmqpubhashblock=tcp://"+zmqaddress,
 			"-zmqpubrawblock=tcp://"+zmqaddress,
 			"-zmqpubrawtx=tcp://"+zmqaddress,
+			"-txindex=1",
 		)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
 )
 
@@ -54,8 +55,7 @@ func (b *Bitbox) Send(node int, address string, amount float64) (tx string, err 
 	}
 
 	n := b.nodes[node]
-	result := n.client.SendFromAsync("", addr, btcAmount)
-	hash, err := result.Receive()
+	hash, err := n.client.SendFrom("", addr, btcAmount)
 	if err != nil {
 		return "", err
 	}
@@ -83,4 +83,20 @@ func (b *Bitbox) Address(node int) (address string, err error) {
 	}
 
 	return addr.String(), nil
+}
+
+func (b *Bitbox) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) {
+	n := b.nodes[0]
+
+	hash, err := chainhash.NewHashFromStr(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction, err := n.client.GetRawTransaction(hash)
+	if err != nil {
+		return nil, err
+	}
+	//log.Println(Tx.Hash().String())
+	return transaction, nil
 }
