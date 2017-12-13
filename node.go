@@ -58,7 +58,7 @@ func (bn *bitcoindNode) Command(cmd ...string) error {
 func startNode(index int) *bitcoindNode {
 	//run bitcoin test box
 	strIndex := strconv.Itoa(index)
-	datadir := "bitbox" + strIndex
+	datadir := "/tmp/bitbox" + strIndex
 	//TODO: dynamic port sesection
 	node := &bitcoindNode{
 		index: index, datadir: datadir,
