@@ -76,7 +76,6 @@ func startNode(index int) *bitcoindNode {
 			time.Sleep(time.Millisecond * 100)
 			err := node.Command("getinfo")
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 			break
