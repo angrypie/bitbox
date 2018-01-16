@@ -28,6 +28,7 @@ func (b *Bitbox) Stop() (err error) {
 	//Stop all nodes
 	for _, node := range b.nodes {
 		node.Stop()
+		node.Clean()
 	}
 	return nil
 }
