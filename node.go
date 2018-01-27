@@ -43,6 +43,7 @@ func (bn *bitcoindNode) StartDaemon() error {
 func (bn *bitcoindNode) Stop() {
 	bn.client.Shutdown()
 	bn.Command("stop")
+	exec.Command("rm", "-rf", bn.datadir).Run()
 }
 
 func (bn *bitcoindNode) Clean() {
