@@ -26,7 +26,7 @@ func (bn *bitcoindNode) StartDaemon() error {
 	)
 
 	if bn.index > 0 {
-		opts = append(opts, "-connect=127.0.0.1:19000")
+		opts = append(opts, "-connect=127.0.0.1:80000")
 	} else {
 		opts = append(opts,
 			"-zmqpubhashtx=tcp://"+zmqaddress,
@@ -53,29 +53,32 @@ func (bn *bitcoindNode) Clean() {
 func (bn *bitcoindNode) Command(cmd ...string) error {
 	args := append([]string{}, "-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test")
 	full := append(args, cmd...)
-	return exec.Command("bitcoin-cli", full...).Run()
+	_, err := exec.Command("bitcoin-cli", full...).Output()
+	return err
 }
 
 func startNode(index int) *bitcoindNode {
 	//run bitcoin test box
 	strIndex := strconv.Itoa(index)
 	datadir := "/tmp/bitbox" + strIndex
-	//TODO: dynamic port sesection
 	node := &bitcoindNode{
 		index: index, datadir: datadir,
-		port: "190" + strIndex + "0", rpcport: "190" + strIndex + "1",
+		port: "800" + strIndex + "0", rpcport: "800" + strIndex + "1",
 	}
 
 	exec.Command("mkdir", datadir).Run()
 
-	err := node.Command("getinfo")
+	err := node.Command("getnetworkinfo")
 	if err != nil {
-		node.Command("stop")
 		time.Sleep(time.Millisecond * 100)
-		node.StartDaemon()
+		err := node.StartDaemon()
+		if err != nil {
+			log.Println(err)
+			return nil
+		}
 		for {
 			time.Sleep(time.Millisecond * 100)
-			err := node.Command("getinfo")
+			err := node.Command("getnetworkinfo")
 			if err != nil {
 				continue
 			}
@@ -89,7 +92,8 @@ func startNode(index int) *bitcoindNode {
 			HTTPPostMode: true, DisableTLS: true,
 		}, nil)
 	if err != nil {
-		log.Println("Rpc client not connected to node ", index)
+		log.Println("Rpc client not connected to node ", index, err)
+		return nil
 	}
 	node.client = client
 	return node
