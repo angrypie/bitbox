@@ -25,7 +25,7 @@ func (b *Bitbox) Start(nodes int) (err error) {
 }
 
 func (b *Bitbox) Stop() (err error) {
-	//Stop all nodes
+	//TODO Need to handle stop and clean errors
 	for _, node := range b.nodes {
 		node.Stop()
 		node.Clean()

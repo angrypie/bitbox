@@ -4,12 +4,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBitbox(t *testing.T) {
-	bb := New()
-	assert.Equal(t, bb.started, false)
-	assert.Equal(t, bb.numberNodes, 0)
-	assert.Len(t, bb.nodes, 0)
+	b := New()
+	assert.Equal(t, b.started, false)
+	assert.Equal(t, b.numberNodes, 0)
+	assert.Len(t, b.nodes, 0)
+
+	require.Nil(t, b.Start(2))
+	defer func() {
+		assert.Nil(t, b.Stop())
+	}()
 
 }

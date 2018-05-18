@@ -12,9 +12,10 @@ func TestNode(t *testing.T) {
 	master := startNode(masterIndex)
 	require.NotNil(t, master)
 	defer master.Stop()
+	defer master.Clean()
 
 	slave := startNode(slaveIndex)
 	require.NotNil(t, slave)
-	defer slave.Stop()
+	defer slave.Clean()
 
 }
