@@ -6,7 +6,7 @@ jobs:
     working_directory: /go/src/github.com/angrypie/bitbox
     steps:
       - checkout
-      - run: apt-get update && apt-get install -y curl
-      - run: curl -O https://raw.githubusercontent.com/canha/golang-tools-install-script/master/goinstall.sh
+      - run: apt-get update && apt-get install -y wget
+      - run: wget https://raw.githubusercontent.com/canha/golang-tools-install-script/master/goinstall.sh
       - run: bash goinstall.sh --64
       - run: go test -v
