@@ -5,14 +5,12 @@ jobs:
       - image: kylemanna/bitcoind
     working_directory: /go/src/github.com/angrypie/bitbox
     environment:
-      BASH_ENV: "~/.bashrc"
+      GOROOT: "$HOME/.go"
+      GOPATH: "$HOME/go"
+      PATH: "$PATH:$HOME/go/bin:$HOME/.go/bin"
     steps:
       - checkout
       - run: apt-get update && apt-get install -y wget
       - run: wget https://raw.githubusercontent.com/canha/golang-tools-install-script/master/goinstall.sh
       - run: bash goinstall.sh --64
-      - run: export GOROOT=$HOME/.go
-      - run: export PATH=$PATH:$GOROOT/bin
-      - run: export GOPATH=$HOME/go
-      - run: export PATH=$PATH:$GOPATH/bin
       - run: echo $PATH
