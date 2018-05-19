@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  test:
+  build:
     docker:
       - image: kylemanna/bitcoind
     working_directory: /go/src/github.com/angrypie/bitbox
