@@ -4,6 +4,8 @@ jobs:
     docker:
       - image: kylemanna/bitcoind
     working_directory: /go/src/github.com/angrypie/bitbox
+    environment:
+      BASH_ENV: "~/.bashrc"
     steps:
       - checkout
       - run: apt-get update && apt-get install -y wget
