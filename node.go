@@ -26,7 +26,7 @@ func (bn *bitcoindNode) StartDaemon() error {
 	)
 
 	if bn.index > 0 {
-		opts = append(opts, "-connect=127.0.0.1:80000")
+		opts = append(opts, "-connect=127.0.0.1:4900")
 	} else {
 		opts = append(opts,
 			"-zmqpubhashtx=tcp://"+zmqaddress,
@@ -63,7 +63,7 @@ func startNode(index int) *bitcoindNode {
 	datadir := "/tmp/bitbox" + strIndex
 	node := &bitcoindNode{
 		index: index, datadir: datadir,
-		port: "800" + strIndex + "0", rpcport: "800" + strIndex + "1",
+		port: "49" + strIndex + "0", rpcport: "49" + strIndex + "1",
 	}
 
 	exec.Command("mkdir", datadir).Run()
@@ -88,7 +88,7 @@ func startNode(index int) *bitcoindNode {
 
 	client, err := rpcclient.New(
 		&rpcclient.ConnConfig{
-			Host: "localhost:" + node.rpcport, User: "test", Pass: "test",
+			Host: "127.0.0.1:" + node.rpcport, User: "test", Pass: "test",
 			HTTPPostMode: true, DisableTLS: true,
 		}, nil)
 	if err != nil {
