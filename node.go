@@ -57,6 +57,8 @@ func (bn *bitcoindNode) Command(cmd ...string) error {
 	return err
 }
 
+const MasterNodeRpcPort = "4901"
+
 func startNode(index int) *bitcoindNode {
 	//run bitcoin test box
 	strIndex := strconv.Itoa(index)
