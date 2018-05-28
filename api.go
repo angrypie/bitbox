@@ -101,3 +101,25 @@ func (b *Bitbox) GetRawTransaction(txHash string) (result *btcutil.Tx, err error
 
 	return transaction, nil
 }
+
+func (b *Bitbox) BlockHeight() (blocks int32, err error) {
+	n := b.nodes[0]
+
+	info, err := n.client.GetBlockChainInfo()
+	if err != nil {
+		return 0, err
+	}
+
+	return info.Blocks, nil
+}
+
+func (b *Bitbox) EstimateFee(numBlocks int64) (fee float64, err error) {
+	n := b.nodes[0]
+
+	fee, err = n.client.EstimateFee(numBlocks)
+	if err != nil {
+		return 0, err
+	}
+
+	return fee, nil
+}
