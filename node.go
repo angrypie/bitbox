@@ -20,7 +20,7 @@ type bitcoindNode struct {
 func (bn *bitcoindNode) StartDaemon() error {
 	//TODO
 	zmqaddress := "127.0.0.1:28333"
-	opts := append([]string{}, "-regtest", "-daemon",
+	opts := append([]string{}, "-regtest", "-daemon", "-deprecatedrpc=estimatefee",
 		"-datadir="+bn.datadir, "-port="+bn.port,
 		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
 	)
