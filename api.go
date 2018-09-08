@@ -16,10 +16,7 @@ func (b *Bitbox) Start(nodes int) (err error) {
 	b.started = true
 	b.numberNodes = nodes
 
-	for i := 0; i < int(nodes); i++ {
-		node := startNode(i)
-		b.nodes = append(b.nodes, node)
-	}
+	b.nodes = newBitcoindNodeSet(nodes)
 
 	return nil
 }

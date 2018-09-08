@@ -38,14 +38,14 @@ func TestBitbox(t *testing.T) {
 
 	checkBalance, err := b.Balance(1)
 	require.Nil(t, err)
-	assert.Equal(t, float64(0), checkBalance, "Expected balance equal to 0 before TX confiramtion")
+	assert.Equal(t, float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
 
 	require.Nil(t, b.Generate(0, 1))
 	time.Sleep(time.Millisecond * 200)
 
 	checkBalance, err = b.Balance(1)
 	require.Nil(t, err)
-	assert.Equal(t, 0.18, checkBalance, "Expected balance equal to 0.18 after TX confiramtion")
+	assert.Equal(t, 0.18, checkBalance, "Expected balance equal to 0.18 after TX confirmation")
 
 	result, err := b.GetRawTransaction(tx)
 	require.Nil(t, err)

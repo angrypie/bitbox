@@ -3,30 +3,51 @@ package bitbox
 import (
 	"log"
 	"os/exec"
-	"strconv"
 	"time"
 
+	"github.com/angrypie/rndport"
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/google/uuid"
 )
 
 type bitcoindNode struct {
-	index   int
-	datadir string
-	port    string
-	rpcport string
-	client  *rpcclient.Client
+	index      int
+	datadir    string
+	port       string
+	rpcport    string
+	client     *rpcclient.Client
+	zmqaddress string
 }
 
-func (bn *bitcoindNode) StartDaemon() error {
+func newBitcoindNodeSet(number int) (nodes []*bitcoindNode) {
+	var masterRPCport string
+	for i := 0; i < int(number); i++ {
+		node := startNode(i, masterRPCport)
+		nodes = append(nodes, node)
+		if i == 0 {
+			masterRPCport = node.port
+		}
+	}
+	return nodes
+}
+
+func (bn *bitcoindNode) StartDaemon(masterRPCport string) error {
 	//TODO
-	zmqaddress := "127.0.0.1:28333"
+	zmqPort, err := rndport.GetAddress()
+	if err != nil {
+		return err
+	}
+	zmqaddress := "127.0.0.1:" + zmqPort
+	bn.zmqaddress = zmqaddress
 	opts := append([]string{}, "-regtest", "-daemon", "-deprecatedrpc=estimatefee",
 		"-datadir="+bn.datadir, "-port="+bn.port,
 		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
 	)
 
 	if bn.index > 0 {
-		opts = append(opts, "-connect=127.0.0.1:4900")
+		// First node will have empty masterRPCport but its' will not be executed
+		log.Println("-connect=127.0.0.1:" + masterRPCport)
+		opts = append(opts, "-connect=127.0.0.1:"+masterRPCport)
 	} else {
 		opts = append(opts,
 			"-zmqpubhashtx=tcp://"+zmqaddress,
@@ -57,15 +78,16 @@ func (bn *bitcoindNode) Command(cmd ...string) error {
 	return err
 }
 
-const MasterNodeRpcPort = "4901"
-
-func startNode(index int) *bitcoindNode {
+func startNode(index int, masterRPCport string) *bitcoindNode {
 	//run bitcoin test box
-	strIndex := strconv.Itoa(index)
-	datadir := "/tmp/bitbox" + strIndex
+	strIndex := uuid.New().String()
+	datadir := "/tmp/bitbox_" + strIndex
+	//TODO check errors
+	port, _ := rndport.GetAddress()
+	rpcPort, _ := rndport.GetAddress()
 	node := &bitcoindNode{
 		index: index, datadir: datadir,
-		port: "49" + strIndex + "0", rpcport: "49" + strIndex + "1",
+		port: port, rpcport: rpcPort,
 	}
 
 	exec.Command("mkdir", datadir).Run()
@@ -73,7 +95,7 @@ func startNode(index int) *bitcoindNode {
 	err := node.Command("getnetworkinfo")
 	if err != nil {
 		time.Sleep(time.Millisecond * 100)
-		err := node.StartDaemon()
+		err := node.StartDaemon(masterRPCport)
 		if err != nil {
 			log.Println(err)
 			return nil
