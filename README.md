@@ -14,7 +14,7 @@ import "github.com/angrypie/bitbox"
 
 func TestSomething(t *testing.T) {
 	client := bitbox.New()
-	//Start 3 bitcoind nodes connected together
+	//Start 2 bitcoind nodes connected together
 	err := client.Start(2) // you should have bitcoind installed
 	if err != nil {
 		t.Error(err)
