@@ -46,7 +46,6 @@ func (bn *bitcoindNode) StartDaemon(masterRPCport string) error {
 
 	if bn.index > 0 {
 		// First node will have empty masterRPCport but its' will not be executed
-		log.Println("-connect=127.0.0.1:" + masterRPCport)
 		opts = append(opts, "-connect=127.0.0.1:"+masterRPCport)
 	} else {
 		opts = append(opts,

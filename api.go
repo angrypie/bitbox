@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcutil"
 )
 
+//Start runs specified number of bitcoind nodes in regtest mode.
 func (b *Bitbox) Start(nodes int) (err error) {
 	if nodes < 1 {
 		return errors.New("Number of nodes should be greater than 0")
@@ -21,6 +22,7 @@ func (b *Bitbox) Start(nodes int) (err error) {
 	return nil
 }
 
+//Stop terminates all nodes, and cleans data directories.
 func (b *Bitbox) Stop() (err error) {
 	//TODO Need to handle stop and clean errors
 	for _, node := range b.nodes {
@@ -30,6 +32,7 @@ func (b *Bitbox) Stop() (err error) {
 	return nil
 }
 
+//Generate perform blocks mining.
 func (b *Bitbox) Generate(nodeIndex int, blocks uint32) (err error) {
 	node := b.nodes[nodeIndex]
 
@@ -41,6 +44,7 @@ func (b *Bitbox) Generate(nodeIndex int, blocks uint32) (err error) {
 	return nil
 }
 
+//Send sends funds from node to specified address.
 func (b *Bitbox) Send(node int, address string, amount float64) (tx string, err error) {
 	addr, err := btcutil.DecodeAddress(address, &chaincfg.RegressionNetParams)
 	if err != nil {
@@ -61,6 +65,7 @@ func (b *Bitbox) Send(node int, address string, amount float64) (tx string, err 
 	return hash.String(), nil
 }
 
+//Balance returns avaliable balance of specified nodes wallet.
 func (b *Bitbox) Balance(node int) (balance float64, err error) {
 	n := b.nodes[node]
 
@@ -72,6 +77,7 @@ func (b *Bitbox) Balance(node int) (balance float64, err error) {
 	return amount.ToBTC(), nil
 }
 
+//Address generates new adderess of specified nodes wallet.
 func (b *Bitbox) Address(node int) (address string, err error) {
 	n := b.nodes[node]
 
@@ -83,6 +89,7 @@ func (b *Bitbox) Address(node int) (address string, err error) {
 	return addr.String(), nil
 }
 
+//GetRawTransaction returns raw transaction by hash.
 func (b *Bitbox) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) {
 	n := b.nodes[0]
 
@@ -99,6 +106,7 @@ func (b *Bitbox) GetRawTransaction(txHash string) (result *btcutil.Tx, err error
 	return transaction, nil
 }
 
+//BlockHeight returns current block height.
 func (b *Bitbox) BlockHeight() (blocks int32, err error) {
 	n := b.nodes[0]
 
@@ -110,6 +118,7 @@ func (b *Bitbox) BlockHeight() (blocks int32, err error) {
 	return info.Blocks, nil
 }
 
+//EstimateFee returns estimated fee rate for specified number of blocks.
 func (b *Bitbox) EstimateFee(numBlocks int64) (fee float64, err error) {
 	n := b.nodes[0]
 
