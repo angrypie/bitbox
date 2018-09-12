@@ -19,6 +19,7 @@ func TestBitbox(t *testing.T) {
 	defer func() {
 		assert.Nil(t, b.Stop())
 	}()
+	require.Nil(t, b.InitMempool())
 
 	//Check regtest methods .Generate .Send
 	require.Nil(t, b.Generate(0, 101))
@@ -26,7 +27,7 @@ func TestBitbox(t *testing.T) {
 
 	balance, err := b.Balance(0)
 	require.Nil(t, err)
-	assert.Equal(t, float64(50), balance)
+	assert.True(t, balance > float64(50))
 
 	address, err := b.Address(1)
 	require.Nil(t, err)

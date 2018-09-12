@@ -2,6 +2,7 @@ package bitbox
 
 import (
 	"errors"
+	"log"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -144,4 +145,37 @@ func (b *Bitbox) EstimateFee(numBlocks int64) (fee float64, err error) {
 	}
 
 	return fee, nil
+}
+
+//InitMempool makes mempool usable by sending transaction and generating blocks.
+func (b *Bitbox) InitMempool() (err error) {
+	err = b.Generate(0, 150)
+	if err != nil {
+		return err
+	}
+	addr, err := b.Address(0)
+	if err != nil {
+		return err
+	}
+
+	height, err := b.BlockHeight()
+	if err != nil {
+		return err
+	}
+
+	if height >= 200 {
+		return
+	}
+	for i := 0; i < 50; i++ {
+		_, err := b.Send(0, addr, 0.00001)
+		if err != nil {
+			log.Println(err)
+		}
+		err = b.Generate(0, 1)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
+	return nil
 }
