@@ -32,6 +32,22 @@ func (b *Bitbox) Stop() (err error) {
 	return nil
 }
 
+//State represent current bitbox state, contain useful info.
+type State struct {
+	RPCPort    string
+	ZmqAddress string
+	IsStarted  bool
+}
+
+//Info returns information about bitbox state.
+func (b *Bitbox) Info() *State {
+	return &State{
+		RPCPort:    b.nodes[0].rpcport,
+		ZmqAddress: b.nodes[0].zmqaddress,
+		IsStarted:  b.started,
+	}
+}
+
 //Generate perform blocks mining.
 func (b *Bitbox) Generate(nodeIndex int, blocks uint32) (err error) {
 	node := b.nodes[nodeIndex]
