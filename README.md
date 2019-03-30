@@ -1,5 +1,5 @@
 
-Bitbox is a golang library that utilise bitcoind regtest mode to create environment for testing your apps.
+Bitbox is a golang library that utilize bitcoind regtest mode to create environment for testing your apps.
 
 [![GoDoc](https://godoc.org/github.com/angrypie/bitbox?status.svg)](https://godoc.org/github.com/angrypie/bitbox)
 
