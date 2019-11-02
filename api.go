@@ -23,7 +23,7 @@ func (b *Bitbox) Start(nodes int) (err error) {
 	return nil
 }
 
-//Stop terminates all nodes, and cleans data directories.
+//Stop terminates all nodes, nnd cleans data directories.
 func (b *Bitbox) Stop() (err error) {
 	//TODO Need to handle stop and clean errors
 	for _, node := range b.nodes {
@@ -74,7 +74,7 @@ func (b *Bitbox) Send(node int, address string, amount float64) (tx string, err 
 	}
 
 	n := b.nodes[node]
-	hash, err := n.client.SendFrom("", addr, btcAmount)
+	hash, err := n.client.SendToAddress(addr, btcAmount)
 	if err != nil {
 		return "", err
 	}

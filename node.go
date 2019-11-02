@@ -39,7 +39,9 @@ func (bn *bitcoindNode) StartDaemon(masterRPCport string) error {
 	}
 	zmqaddress := "127.0.0.1:" + zmqPort
 	bn.zmqaddress = zmqaddress
-	opts := append([]string{}, "-regtest", "-daemon", "-deprecatedrpc=estimatefee",
+	opts := append([]string{}, "-regtest", "-daemon",
+		"-deprecatedrpc=estimatefee,generate",
+		"-deprecatedrpc=generate",
 		"-datadir="+bn.datadir, "-port="+bn.port,
 		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
 	)
