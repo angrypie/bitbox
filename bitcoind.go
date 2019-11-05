@@ -22,6 +22,10 @@ type Bitcoind struct {
 	nodes       []*bitcoindNode
 }
 
+func NewBitcoind() *Bitcoind {
+	return &Bitcoind{}
+}
+
 //Start runs specified number of bitcoind nodes in regtest mode.
 func (b *Bitcoind) Start(nodes int) (err error) {
 	if nodes < 1 {

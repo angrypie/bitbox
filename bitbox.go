@@ -26,8 +26,14 @@ type Bitbox interface {
 }
 
 //New creates new Bitbox client
-func New() (bitbox Bitbox) {
-	return &Bitcoind{}
+func New(name ...string) (bitbox Bitbox) {
+	if len(name) > 0 {
+		switch name[0] {
+		case "btcd":
+			return NewBtcd()
+		}
+	}
+	return NewBitcoind()
 }
 
 //State represent current bitbox state, contain useful info.
