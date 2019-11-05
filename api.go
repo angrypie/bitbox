@@ -86,7 +86,7 @@ func (b *Bitbox) Send(node int, address string, amount float64) (tx string, err 
 func (b *Bitbox) Balance(node int) (balance float64, err error) {
 	n := b.nodes[node]
 
-	amount, err := n.client.GetBalance("")
+	amount, err := n.client.GetBalance("*")
 	if err != nil {
 		return 0, err
 	}
@@ -133,18 +133,6 @@ func (b *Bitbox) BlockHeight() (blocks int32, err error) {
 	}
 
 	return info.Blocks, nil
-}
-
-//EstimateFee returns estimated fee rate for specified number of blocks.
-func (b *Bitbox) EstimateFee(numBlocks int64) (fee float64, err error) {
-	n := b.nodes[0]
-
-	fee, err = n.client.EstimateFee(numBlocks)
-	if err != nil {
-		return 0, err
-	}
-
-	return fee, nil
 }
 
 //InitMempool makes mempool usable by sending transaction and generating blocks.

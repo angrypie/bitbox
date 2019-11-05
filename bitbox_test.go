@@ -4,52 +4,57 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBitbox(t *testing.T) {
 	//Check New, .Start, .Stop
 	b := New()
-	assert.Equal(t, false, b.started)
-	assert.Equal(t, 0, b.numberNodes)
-	assert.Len(t, b.nodes, 0)
+	require := require.New(t)
+	require.Equal(false, b.started)
+	require.Equal(0, b.numberNodes)
+	require.Len(b.nodes, 0)
 
-	require.Nil(t, b.Start(2))
+	require.NoError(b.Start(2))
 	defer func() {
-		assert.Nil(t, b.Stop())
+		require.NoError(b.Stop())
 	}()
-	require.Nil(t, b.InitMempool())
+	require.NoError(b.InitMempool())
+
+	//Test Info method
+	state := b.Info()
+	require.True(state.IsStarted)
+	require.NotEmpty(state.RPCPort)
+	require.NotEmpty(state.ZmqAddress)
 
 	//Check regtest methods .Generate .Send
-	require.Nil(t, b.Generate(0, 101))
+	require.NoError(b.Generate(0, 101))
 	time.Sleep(time.Millisecond * 200)
 
 	balance, err := b.Balance(0)
-	require.Nil(t, err)
-	assert.True(t, balance > float64(50))
+	require.NoError(err)
+	require.True(balance > float64(50))
 
 	address, err := b.Address(1)
-	require.Nil(t, err)
-	assert.NotEmpty(t, address)
+	require.NoError(err)
+	require.NotEmpty(address)
 
 	tx, err := b.Send(0, address, 0.18)
-	require.Nil(t, err)
-	assert.NotEmpty(t, tx)
+	require.NoError(err)
+	require.NotEmpty(tx)
 
 	checkBalance, err := b.Balance(1)
-	require.Nil(t, err)
-	assert.Equal(t, float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
+	require.NoError(err)
+	require.Equal(float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
 
-	require.Nil(t, b.Generate(0, 1))
+	require.NoError(b.Generate(0, 1))
 	time.Sleep(time.Millisecond * 200)
 
 	checkBalance, err = b.Balance(1)
-	require.Nil(t, err)
-	assert.Equal(t, 0.18, checkBalance, "Expected balance equal to 0.18 after TX confirmation")
+	require.NoError(err)
+	require.Equal(0.18, checkBalance, "Expected balance equal to 0.18 after TX confirmation")
 
 	result, err := b.GetRawTransaction(tx)
-	require.Nil(t, err)
-	assert.Equal(t, tx, result.Hash().String())
-
+	require.NoError(err)
+	require.Equal(tx, result.Hash().String())
 }
