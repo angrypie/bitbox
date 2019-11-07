@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/angrypie/rndport"
@@ -29,7 +30,7 @@ func NewBitcoind() *Bitcoind {
 //Start runs specified number of bitcoind nodes in regtest mode.
 func (b *Bitcoind) Start(nodes int) (err error) {
 	if nodes < 1 {
-		return errors.New("Number of nodes should be greater than 0")
+		return errors.New("number of nodes should be greater than 0")
 	}
 
 	b.started = true
@@ -45,7 +46,6 @@ func (b *Bitcoind) Stop() (err error) {
 	//TODO Need to handle stop and clean errors
 	for _, node := range b.nodes {
 		node.Stop()
-		node.Clean()
 	}
 	return nil
 }
@@ -60,6 +60,7 @@ func (b *Bitcoind) Info() *State {
 	}
 
 	return &State{
+		Name:        "bitcoind",
 		RPCPort:     rpcPort,
 		ZmqAddress:  zmqAddress,
 		IsStarted:   b.started,
@@ -197,13 +198,21 @@ type bitcoindNode struct {
 
 func newBitcoindNodeSet(number int) (nodes []*bitcoindNode) {
 	var masterRPCport string
-	for i := 0; i < int(number); i++ {
-		node := startNode(i, masterRPCport)
-		nodes = append(nodes, node)
-		if i == 0 {
-			masterRPCport = node.port
-		}
+	node := startNode(0, "")
+	nodes = append(nodes, node)
+	masterRPCport = node.port
+
+	var wg sync.WaitGroup
+	wg.Add(number - 1)
+	for i := 1; i < int(number); i++ {
+		i := i
+		go func() {
+			node := startNode(i, masterRPCport)
+			nodes = append(nodes, node)
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 	return nodes
 }
 
@@ -242,10 +251,6 @@ func (bn *bitcoindNode) Stop() {
 	bn.client.Shutdown()
 	bn.Command("stop")
 	exec.Command("rm", "-rf", bn.datadir).Run()
-}
-
-func (bn *bitcoindNode) Clean() {
-	exec.Command("rm", "-r", bn.datadir).Run()
 }
 
 func (bn *bitcoindNode) Command(cmd ...string) error {

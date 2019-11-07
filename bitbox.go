@@ -38,6 +38,7 @@ func New(name ...string) (bitbox Bitbox) {
 
 //State represent current bitbox state, contain useful info.
 type State struct {
+	Name        string
 	RPCPort     string
 	ZmqAddress  string
 	IsStarted   bool

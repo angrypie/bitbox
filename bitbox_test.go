@@ -9,7 +9,7 @@ import (
 
 func TestBitbox(t *testing.T) {
 	//Check New, .Start, .Stop
-	b := New()
+	b := New("btcd")
 	require := require.New(t)
 	state := b.Info()
 	require.Equal(false, state.IsStarted)
