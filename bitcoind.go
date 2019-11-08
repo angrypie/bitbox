@@ -43,7 +43,7 @@ func (b *Bitcoind) Start(nodes int) (err error) {
 
 //Stop terminates all nodes, nnd cleans data directories.
 func (b *Bitcoind) Stop() (err error) {
-	//TODO Need to handle stop and clean errors
+	//TODO Need to handle stop errors
 	for _, node := range b.nodes {
 		node.Stop()
 	}

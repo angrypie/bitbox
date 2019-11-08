@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/angrypie/procutil"
@@ -38,7 +39,11 @@ func (b *Btcd) Start(nodes int) (err error) {
 
 //Stop terminates all nodes, nnd cleans data directories.
 func (b *Btcd) Stop() (err error) {
-	return
+	//TODO Need to handle stop errors
+	for _, node := range b.nodes {
+		node.Stop()
+	}
+	return nil
 }
 
 //Info returns information about bitbox state.
@@ -134,7 +139,6 @@ func (bn *btcdNode) StartDaemon(masterRPCport string) (err error) {
 	if err != nil {
 		log.Println("ERR starting btcd")
 	}
-	log.Printf("successfuly started btcd node #%d\n", bn.index)
 	return
 }
 
@@ -147,16 +151,6 @@ func (bn *btcdNode) Stop() {
 	exec.Command("rm", "-rf", bn.datadir).Run()
 }
 
-func (bn *btcdNode) Command(cmd ...string) error {
-	args := append([]string{}, "--simnet", "--rpcserver=127.0.0.1:"+bn.rpcport, "--rpcuser=test", "--rpcpass=test")
-	full := append(args, cmd...)
-	output, err := exec.Command("btcctl", full...).CombinedOutput()
-	if err != nil {
-		log.Printf("Executing command: %+v\n Output:%s\n", full, output)
-	}
-	return err
-}
-
 func newBtcdNodeSet(number int) (nodes []*btcdNode, err error) {
 	var masterRPCport string
 	node, err := startBtcdNode(0, "")
@@ -166,20 +160,20 @@ func newBtcdNodeSet(number int) (nodes []*btcdNode, err error) {
 	nodes = append(nodes, node)
 	masterRPCport = node.port
 
-	//var wg sync.WaitGroup
-	//wg.Add(number - 1)
+	var wg sync.WaitGroup
+	wg.Add(number - 1)
 	for i := 1; i < int(number); i++ {
 		i := i
-		//go func() {
-		node, err = startBtcdNode(i, masterRPCport)
-		if err != nil {
-			return
-		}
-		nodes = append(nodes, node)
-		//wg.Done()
-		//}()
+		go func() {
+			node, err = startBtcdNode(i, masterRPCport)
+			if err != nil {
+				return
+			}
+			nodes = append(nodes, node)
+			wg.Done()
+		}()
 	}
-	//wg.Wait()
+	wg.Wait()
 	return
 }
 
@@ -226,7 +220,6 @@ func startBtcdNode(index int, masterRPCport string) (node *btcdNode, err error) 
 		for {
 			time.Sleep(time.Millisecond * 100)
 			_, err = node.client.GetInfo()
-			log.Println("trying to start lol", err)
 			if err != nil {
 				continue
 			}

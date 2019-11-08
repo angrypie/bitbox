@@ -5,20 +5,29 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestBitbox(t *testing.T) {
+type BitboxTestSuite struct {
+	suite.Suite
+	b Bitbox
+}
+
+func (suite *BitboxTestSuite) TearDownSuite() {
+	suite.NoError(suite.b.Stop())
+
+}
+
+func (suite *BitboxTestSuite) TestBtcd() {
 	//Check New, .Start, .Stop
 	b := New("btcd")
-	require := require.New(t)
+	suite.b = b
+	require := require.New(suite.T())
 	state := b.Info()
 	require.Equal(false, state.IsStarted)
 	require.Equal(0, state.NodesNumber)
 
 	require.NoError(b.Start(2))
-	defer func() {
-		require.NoError(b.Stop())
-	}()
 	require.NoError(b.InitMempool())
 
 	//Test Info method
@@ -57,4 +66,8 @@ func TestBitbox(t *testing.T) {
 	result, err := b.GetRawTransaction(tx)
 	require.NoError(err)
 	require.Equal(tx, result.Hash().String())
+}
+
+func TestBitbox(t *testing.T) {
+	suite.Run(t, new(BitboxTestSuite))
 }
