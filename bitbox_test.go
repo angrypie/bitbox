@@ -1,6 +1,7 @@
 package bitbox
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -42,6 +43,7 @@ func (suite *BitboxTestSuite) TestBtcd() {
 
 	balance, err := b.Balance(0)
 	require.NoError(err)
+	log.Println(balance)
 	require.True(balance > float64(50))
 
 	address, err := b.Address(1)
@@ -57,7 +59,8 @@ func (suite *BitboxTestSuite) TestBtcd() {
 	require.Equal(float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
 
 	require.NoError(b.Generate(0, 1))
-	time.Sleep(time.Millisecond * 200)
+	//TODO smart waiting loop
+	time.Sleep(time.Millisecond * 2000)
 
 	checkBalance, err = b.Balance(1)
 	require.NoError(err)

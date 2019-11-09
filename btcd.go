@@ -2,6 +2,7 @@ package bitbox
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os/exec"
 	"sync"
@@ -9,10 +10,14 @@ import (
 
 	"github.com/angrypie/procutil"
 	"github.com/angrypie/rndport"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/google/uuid"
 )
+
+const defaultAccount = "default"
 
 type Btcd struct {
 	started     bool
@@ -65,26 +70,67 @@ func (b *Btcd) Info() (state *State) {
 
 //Generate perform blocks mining.
 func (b *Btcd) Generate(nodeIndex int, blocks uint32) (err error) {
-	err = errors.New("TODO")
+	node := b.nodes[nodeIndex]
+
+	_, err = node.client.Generate(blocks)
+	if err != nil {
+		return err
+	}
+
 	return
 }
 
 //Send sends funds from node to specified address.
 func (b *Btcd) Send(node int, address string, amount float64) (tx string, err error) {
-	err = errors.New("TODO")
-	return
+	return b.send(node, defaultAccount, address, amount)
+}
+
+func (b *Btcd) send(node int, account, address string, amount float64) (tx string, err error) {
+	addr, err := btcutil.DecodeAddress(address, &chaincfg.SimNetParams)
+	if err != nil {
+		return "", errors.New("Wrong addres: " + err.Error())
+	}
+
+	btcAmount, err := btcutil.NewAmount(amount)
+	if err != nil {
+		return "", errors.New("Wrong amount: " + err.Error())
+	}
+
+	n := b.nodes[node]
+	hash, err := n.client.SendFrom(account, addr, btcAmount)
+	if err != nil {
+		return "", err
+	}
+
+	return hash.String(), nil
+}
+
+func (b *Btcd) sendFromMiner(node int, address string, amount float64) (tx string, err error) {
+	return b.send(node, "imported", address, amount)
 }
 
 //Balance returns avaliable balance of specified nodes wallet.
 func (b *Btcd) Balance(node int) (balance float64, err error) {
-	err = errors.New("TODO")
-	return
+	n := b.nodes[node]
+
+	amount, err := n.client.GetBalance(defaultAccount)
+	if err != nil {
+		return 0, err
+	}
+
+	return amount.ToBTC(), nil
 }
 
 //Address generates new adderess of specified nodes wallet.
 func (b *Btcd) Address(node int) (address string, err error) {
-	err = errors.New("TODO")
-	return
+	n := b.nodes[node]
+
+	addr, err := n.client.GetNewAddress(defaultAccount)
+	if err != nil {
+		return "", err
+	}
+
+	return addr.String(), nil
 }
 
 //GetRawTransaction returns raw transaction by hash.
@@ -95,29 +141,66 @@ func (b *Btcd) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) 
 
 //BlockHeight returns current block height.
 func (b *Btcd) BlockHeight() (blocks int32, err error) {
-	err = errors.New("TODO")
-	return
+	n := b.nodes[0]
+
+	info, err := n.client.GetBlockChainInfo()
+	if err != nil {
+		return 0, err
+	}
+
+	return info.Blocks, nil
 }
 
 //InitMempool makes mempool usable by sending transaction and generating blocks.
 func (b *Btcd) InitMempool() (err error) {
-	err = errors.New("TODO")
+	err = b.Generate(0, 200)
+	if err != nil {
+		return err
+	}
+
+	addr, err := b.Address(0)
+	if err != nil {
+		return err
+	}
+
+	//TODO max waiting time
+	for {
+		if bal, err := b.nodes[0].client.GetBalance("imported"); err == nil && bal.ToBTC() != 0 {
+			break
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+
+	for i := 0; i < 50; i++ {
+		_, err := b.sendFromMiner(0, addr, 10)
+		if err != nil {
+			log.Println(err)
+		}
+		err = b.Generate(0, 1)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	return
 }
 
 type btcdNode struct {
-	index   int
-	datadir string
-	port    string
-	rpcport string
-	client  *rpcclient.Client
-	cmd     *exec.Cmd
+	index         int
+	datadir       string
+	port          string
+	rpcport       string
+	walletRPCPort string
+	client        *rpcclient.Client
+	btcdCmd       *exec.Cmd
+	walletCmd     *exec.Cmd
+	btcKey        *btcKey
 }
 
 func (bn *btcdNode) StartDaemon(masterRPCport string) (err error) {
 	opts := append([]string{},
 		"--simnet",
 		"--notls",
+		"--miningaddr="+bn.btcKey.Address().String(),
 		"--datadir="+bn.datadir,
 		"--listen=127.0.0.1:"+bn.port,
 		"--rpclisten=127.0.0.1:"+bn.rpcport,
@@ -133,20 +216,51 @@ func (bn *btcdNode) StartDaemon(masterRPCport string) (err error) {
 			"--txindex",
 		)
 	}
-
-	bn.cmd = exec.Command("btcd", opts...)
-	err = bn.cmd.Start()
+	bn.btcdCmd = exec.Command("btcd", opts...)
+	err = bn.btcdCmd.Start()
 	if err != nil {
 		log.Println("ERR starting btcd")
+		return
 	}
+
+	walletOpts := append([]string{},
+		"--simnet",
+		"--createtemp",
+		"--noservertls",
+		"--noclienttls",
+		"--appdata="+bn.datadir,
+		"--rpcconnect=127.0.0.1:"+bn.rpcport,
+		"--rpclisten=127.0.0.1:"+bn.walletRPCPort,
+		"--username=test",
+		"--password=test",
+	)
+
+	bn.walletCmd = exec.Command("btcwallet", walletOpts...)
+	err = bn.walletCmd.Start()
+	if err != nil {
+		log.Println("ERR starting btcd")
+		return
+	}
+
+	bn.client, err = newRpcClient("127.0.0.1:" + bn.walletRPCPort)
+	if err != nil {
+		log.Println("ERR starting starting wallet")
+		return
+	}
+
 	return
 }
 
 func (bn *btcdNode) Stop() {
 	bn.client.Shutdown()
-	err := procutil.Terminate(bn.cmd.Process)
+	err := procutil.Terminate(bn.btcdCmd.Process)
 	if err != nil {
 		log.Println("ERR terminating btcd node process")
+	}
+
+	err = procutil.Terminate(bn.walletCmd.Process)
+	if err != nil {
+		log.Println("ERR terminating wallet process")
 	}
 	exec.Command("rm", "-rf", bn.datadir).Run()
 }
@@ -183,12 +297,15 @@ func startBtcdNode(index int, masterRPCport string) (node *btcdNode, err error) 
 
 	port, _ := rndport.GetAddress()
 	rpcPort, _ := rndport.GetAddress()
+	walletPort, _ := rndport.GetAddress()
 
 	node = &btcdNode{
-		index:   index,
-		datadir: datadir,
-		port:    port,
-		rpcport: rpcPort,
+		index:         index,
+		datadir:       datadir,
+		port:          port,
+		rpcport:       rpcPort,
+		walletRPCPort: walletPort,
+		btcKey:        newBtcKey(),
 	}
 
 	//Create directory for node data
@@ -198,11 +315,7 @@ func startBtcdNode(index int, masterRPCport string) (node *btcdNode, err error) 
 		return
 	}
 
-	client, err := rpcclient.New(
-		&rpcclient.ConnConfig{
-			Host: "127.0.0.1:" + node.rpcport, User: "test", Pass: "test",
-			HTTPPostMode: true, DisableTLS: true,
-		}, nil)
+	client, err := newRpcClient("127.0.0.1:" + node.rpcport)
 	if err != nil {
 		log.Println("ERR rpc client not connected to node ", index, err)
 		return
@@ -217,15 +330,69 @@ func startBtcdNode(index int, masterRPCport string) (node *btcdNode, err error) 
 			log.Println("ERR starting daemon", err)
 			return
 		}
-		for {
+
+		for i := 0; ; i++ {
 			time.Sleep(time.Millisecond * 100)
 			_, err = node.client.GetInfo()
 			if err != nil {
+				if i == 40 {
+					fmt.Println("trying to get info", err)
+					i = 0
+				}
 				continue
 			}
 			break
 		}
 	}
 
+	err = node.client.WalletPassphrase("password", 1e6)
+	if err != nil {
+		return
+	}
+
+	wif, err := node.btcKey.GetWIF()
+	if err != nil {
+		return
+	}
+
+	err = node.client.ImportPrivKey(wif)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+type btcKey struct {
+	key *hdkeychain.ExtendedKey
+	net *chaincfg.Params
+}
+
+func newBtcKey() *btcKey {
+	net := &chaincfg.SimNetParams
+	seed, _ := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
+	masterKey, _ := hdkeychain.NewMaster(seed, net)
+	return &btcKey{key: masterKey, net: net}
+}
+
+func (key *btcKey) Address() btcutil.Address {
+	addr, _ := key.key.Address(key.net)
+	return addr
+}
+
+func (key *btcKey) GetWIF() (wif *btcutil.WIF, err error) {
+	priv, _ := key.key.ECPrivKey()
+	return btcutil.NewWIF(priv, key.net, true)
+}
+
+func newRpcClient(host string) (client *rpcclient.Client, err error) {
+	client, err = rpcclient.New(
+		&rpcclient.ConnConfig{
+			Host:         host,
+			User:         "test",
+			Pass:         "test",
+			HTTPPostMode: true,
+			DisableTLS:   true,
+		}, nil)
 	return
 }
