@@ -1,30 +1,40 @@
 package bitbox
 
 import (
+	"log"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestBitbox(t *testing.T) {
+type BitboxTestSuite struct {
+	suite.Suite
+	backendName string
+	b           Bitbox
+}
+
+func (suite *BitboxTestSuite) TearDownSuite() {
+	suite.NoError(suite.b.Stop())
+}
+
+func (suite *BitboxTestSuite) TestBitbox() {
 	//Check New, .Start, .Stop
-	b := New()
-	require := require.New(t)
-	require.Equal(false, b.started)
-	require.Equal(0, b.numberNodes)
-	require.Len(b.nodes, 0)
+	b := New(suite.backendName)
+	suite.b = b
+	require := require.New(suite.T())
+	state := b.Info()
+	require.Equal(false, state.IsStarted)
+	require.Equal(0, state.NodesNumber)
 
 	require.NoError(b.Start(2))
-	defer func() {
-		require.NoError(b.Stop())
-	}()
 	require.NoError(b.InitMempool())
 
 	//Test Info method
-	state := b.Info()
+	state = b.Info()
 	require.True(state.IsStarted)
-	require.NotEmpty(state.RPCPort)
+	require.NotEmpty(state.NodePort)
 	require.NotEmpty(state.ZmqAddress)
 
 	//Check regtest methods .Generate .Send
@@ -33,7 +43,8 @@ func TestBitbox(t *testing.T) {
 
 	balance, err := b.Balance(0)
 	require.NoError(err)
-	require.True(balance > float64(50))
+	log.Println(balance)
+	require.True(balance > float64(50), "Balance expected to be greater than 50")
 
 	address, err := b.Address(1)
 	require.NoError(err)
@@ -47,8 +58,9 @@ func TestBitbox(t *testing.T) {
 	require.NoError(err)
 	require.Equal(float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
 
-	require.NoError(b.Generate(0, 1))
-	time.Sleep(time.Millisecond * 200)
+	require.NoError(b.Generate(0, 3))
+	//TODO smart waiting loop
+	time.Sleep(time.Millisecond * 5000)
 
 	checkBalance, err = b.Balance(1)
 	require.NoError(err)
@@ -57,4 +69,16 @@ func TestBitbox(t *testing.T) {
 	result, err := b.GetRawTransaction(tx)
 	require.NoError(err)
 	require.Equal(tx, result.Hash().String())
+
+	height, err := b.BlockHeight()
+	require.NoError(err)
+	require.NotZero(height)
+}
+
+func TestBtcd(t *testing.T) {
+	suite.Run(t, &BitboxTestSuite{backendName: "btcd"})
+}
+
+func TestBitcoind(t *testing.T) {
+	suite.Run(t, &BitboxTestSuite{backendName: "bitcoind"})
 }
