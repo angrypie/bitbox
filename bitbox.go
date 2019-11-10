@@ -1,7 +1,16 @@
 package bitbox
 
-import "github.com/btcsuite/btcutil"
+import (
+	"errors"
 
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/btcsuite/btcutil"
+)
+
+//Bitbox represent API interface to multiple bitcoin nodes,
+//that are running in regtest/simnet mode.
 type Bitbox interface {
 	//Start runs specified number of bitcoind nodes in regtest mode.
 	Start(nodes int) (err error)
@@ -25,22 +34,128 @@ type Bitbox interface {
 	InitMempool() (err error)
 }
 
-//New creates new Bitbox client
-func New(name ...string) (bitbox Bitbox) {
-	if len(name) > 0 {
-		switch name[0] {
+//New creates new Bitbox client. Pass 'btcd' as first argument to use such backend,
+//by default 'bitcoind' is used.
+func New(args ...string) (bitbox Bitbox) {
+	if len(args) > 0 {
+		switch args[0] {
 		case "btcd":
-			return NewBtcd()
+			return newBtcd()
 		}
 	}
-	return NewBitcoind()
+	return newBitcoind()
 }
 
 //State represent current bitbox state, contain useful info.
 type State struct {
 	Name        string
-	RPCPort     string
+	NodePort    string
 	ZmqAddress  string
 	IsStarted   bool
 	NodesNumber int
+}
+
+type Node interface {
+	Start() error
+	Stop() error
+	Client() *rpcclient.Client
+	Info() *State
+}
+
+type BitboxDefaults struct {
+	Nodes []Node
+}
+
+//Stop terminates all nodes, nnd cleans data directories.
+func (b *BitboxDefaults) Stop() (err error) {
+	//TODO Need to handle stop errors
+	for _, node := range b.Nodes {
+		node.Stop()
+	}
+	return nil
+}
+
+//Generate perform blocks mining.
+func (b *BitboxDefaults) Generate(nodeIndex int, blocks uint32) (err error) {
+	client := b.Nodes[nodeIndex].Client()
+
+	_, err = client.Generate(blocks)
+	if err != nil {
+		return err
+	}
+
+	return
+}
+
+//GetRawTransaction returns raw transaction by hash.
+func (b *BitboxDefaults) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) {
+	client := b.Nodes[0].Client()
+
+	hash, err := chainhash.NewHashFromStr(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction, err := client.GetRawTransaction(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return transaction, nil
+}
+
+//BlockHeight returns current block height.
+func (b *BitboxDefaults) BlockHeight() (blocks int32, err error) {
+	client := b.Nodes[0].Client()
+
+	info, err := client.GetBlockChainInfo()
+	if err != nil {
+		return 0, err
+	}
+
+	return info.Blocks, nil
+}
+
+func (b *BitboxDefaults) Send(node int, address string, amount float64) (tx string, err error) {
+	addr, err := btcutil.DecodeAddress(address, &chaincfg.RegressionNetParams)
+	if err != nil {
+		return "", errors.New("Wrong addres: " + err.Error())
+	}
+
+	btcAmount, err := btcutil.NewAmount(amount)
+	if err != nil {
+		return "", errors.New("Wrong amount: " + err.Error())
+	}
+
+	client := b.Nodes[node].Client()
+	hash, err := client.SendToAddress(addr, btcAmount)
+	if err != nil {
+		return "", err
+	}
+
+	return hash.String(), nil
+}
+
+//Balance returns avaliable balance of specified nodes wallet.
+func (b *BitboxDefaults) AccountBalance(node int, account string) (balance float64, err error) {
+	n := b.Nodes[node]
+
+	amount, err := n.Client().GetBalance(account)
+	if err != nil {
+		return 0, err
+	}
+
+	return amount.ToBTC(), nil
+}
+
+//Address generates new adderess of specified nodes wallet.
+func (b *BitboxDefaults) AccountAddress(node int, account string) (address string, err error) {
+	n := b.Nodes[node]
+
+	addr, err := n.Client().GetNewAddress(account)
+	if err != nil {
+		return
+	}
+
+	return addr.String(), nil
 }

@@ -19,7 +19,7 @@ func (suite *BitboxTestSuite) TearDownSuite() {
 	suite.NoError(suite.b.Stop())
 }
 
-func (suite *BitboxTestSuite) TestBtcd() {
+func (suite *BitboxTestSuite) TestBitbox() {
 	//Check New, .Start, .Stop
 	b := New(suite.backendName)
 	suite.b = b
@@ -34,7 +34,7 @@ func (suite *BitboxTestSuite) TestBtcd() {
 	//Test Info method
 	state = b.Info()
 	require.True(state.IsStarted)
-	require.NotEmpty(state.RPCPort)
+	require.NotEmpty(state.NodePort)
 	require.NotEmpty(state.ZmqAddress)
 
 	//Check regtest methods .Generate .Send
@@ -44,7 +44,7 @@ func (suite *BitboxTestSuite) TestBtcd() {
 	balance, err := b.Balance(0)
 	require.NoError(err)
 	log.Println(balance)
-	require.True(balance > float64(50))
+	require.True(balance > float64(50), "Balance expected to be greater than 50")
 
 	address, err := b.Address(1)
 	require.NoError(err)
@@ -58,7 +58,7 @@ func (suite *BitboxTestSuite) TestBtcd() {
 	require.NoError(err)
 	require.Equal(float64(0), checkBalance, "Expected balance equal to 0 before TX confirmation")
 
-	require.NoError(b.Generate(0, 1))
+	require.NoError(b.Generate(0, 3))
 	//TODO smart waiting loop
 	time.Sleep(time.Millisecond * 5000)
 
