@@ -11,6 +11,7 @@ import (
 	"github.com/angrypie/procutil"
 	"github.com/angrypie/rndport"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/hdkeychain"
@@ -135,8 +136,19 @@ func (b *Btcd) Address(node int) (address string, err error) {
 
 //GetRawTransaction returns raw transaction by hash.
 func (b *Btcd) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) {
-	err = errors.New("TODO")
-	return
+	n := b.nodes[0]
+
+	hash, err := chainhash.NewHashFromStr(txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction, err := n.client.GetRawTransaction(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return transaction, nil
 }
 
 //BlockHeight returns current block height.

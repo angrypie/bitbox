@@ -11,17 +11,17 @@ import (
 
 type BitboxTestSuite struct {
 	suite.Suite
-	b Bitbox
+	backendName string
+	b           Bitbox
 }
 
 func (suite *BitboxTestSuite) TearDownSuite() {
 	suite.NoError(suite.b.Stop())
-
 }
 
 func (suite *BitboxTestSuite) TestBtcd() {
 	//Check New, .Start, .Stop
-	b := New("btcd")
+	b := New(suite.backendName)
 	suite.b = b
 	require := require.New(suite.T())
 	state := b.Info()
@@ -60,7 +60,7 @@ func (suite *BitboxTestSuite) TestBtcd() {
 
 	require.NoError(b.Generate(0, 1))
 	//TODO smart waiting loop
-	time.Sleep(time.Millisecond * 2000)
+	time.Sleep(time.Millisecond * 5000)
 
 	checkBalance, err = b.Balance(1)
 	require.NoError(err)
@@ -69,8 +69,16 @@ func (suite *BitboxTestSuite) TestBtcd() {
 	result, err := b.GetRawTransaction(tx)
 	require.NoError(err)
 	require.Equal(tx, result.Hash().String())
+
+	height, err := b.BlockHeight()
+	require.NoError(err)
+	require.NotZero(height)
 }
 
-func TestBitbox(t *testing.T) {
-	suite.Run(t, new(BitboxTestSuite))
+func TestBtcd(t *testing.T) {
+	suite.Run(t, &BitboxTestSuite{backendName: "btcd"})
+}
+
+func TestBitcoind(t *testing.T) {
+	suite.Run(t, &BitboxTestSuite{backendName: "bitcoind"})
 }
