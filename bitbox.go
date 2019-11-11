@@ -76,10 +76,8 @@ func (b *BitboxDefaults) Stop() (err error) {
 }
 
 //Generate perform blocks mining.
-func (b *BitboxDefaults) Generate(nodeIndex int, blocks uint32) (err error) {
-	client := b.Nodes[nodeIndex].Client()
-
-	_, err = client.Generate(blocks)
+func (b *BitboxDefaults) Generate(node int, blocks uint32) (err error) {
+	_, err = b.Client(node).Generate(blocks)
 	if err != nil {
 		return err
 	}
@@ -89,14 +87,12 @@ func (b *BitboxDefaults) Generate(nodeIndex int, blocks uint32) (err error) {
 
 //GetRawTransaction returns raw transaction by hash.
 func (b *BitboxDefaults) GetRawTransaction(txHash string) (result *btcutil.Tx, err error) {
-	client := b.Nodes[0].Client()
-
 	hash, err := chainhash.NewHashFromStr(txHash)
 	if err != nil {
 		return nil, err
 	}
 
-	transaction, err := client.GetRawTransaction(hash)
+	transaction, err := b.Client(0).GetRawTransaction(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +102,8 @@ func (b *BitboxDefaults) GetRawTransaction(txHash string) (result *btcutil.Tx, e
 
 //BlockHeight returns current block height.
 func (b *BitboxDefaults) BlockHeight() (blocks int32, err error) {
-	client := b.Nodes[0].Client()
 
-	info, err := client.GetBlockChainInfo()
+	info, err := b.Client(0).GetBlockChainInfo()
 	if err != nil {
 		return 0, err
 	}
@@ -127,8 +122,7 @@ func (b *BitboxDefaults) Send(node int, address string, amount float64) (tx stri
 		return "", errors.New("Wrong amount: " + err.Error())
 	}
 
-	client := b.Nodes[node].Client()
-	hash, err := client.SendToAddress(addr, btcAmount)
+	hash, err := b.Client(node).SendToAddress(addr, btcAmount)
 	if err != nil {
 		return "", err
 	}
@@ -138,9 +132,7 @@ func (b *BitboxDefaults) Send(node int, address string, amount float64) (tx stri
 
 //Balance returns avaliable balance of specified nodes wallet.
 func (b *BitboxDefaults) AccountBalance(node int, account string) (balance float64, err error) {
-	n := b.Nodes[node]
-
-	amount, err := n.Client().GetBalance(account)
+	amount, err := b.Client(node).GetBalance(account)
 	if err != nil {
 		return 0, err
 	}
@@ -150,12 +142,17 @@ func (b *BitboxDefaults) AccountBalance(node int, account string) (balance float
 
 //Address generates new adderess of specified nodes wallet.
 func (b *BitboxDefaults) AccountAddress(node int, account string) (address string, err error) {
-	n := b.Nodes[node]
-
-	addr, err := n.Client().GetNewAddress(account)
+	addr, err := b.Client(node).GetNewAddress(account)
 	if err != nil {
 		return
 	}
 
 	return addr.String(), nil
+}
+
+func (b *BitboxDefaults) Client(nodeIndex int) *rpcclient.Client {
+	if len(b.Nodes) <= nodeIndex {
+		return nil
+	}
+	return b.Nodes[nodeIndex].Client()
 }

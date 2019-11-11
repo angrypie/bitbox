@@ -82,8 +82,7 @@ func (b *Btcd) send(node int, account, address string, amount float64) (tx strin
 		return
 	}
 
-	n := b.Nodes[node]
-	hash, err := n.Client().SendFrom(account, addr, btcAmount)
+	hash, err := b.Client(node).SendFrom(account, addr, btcAmount)
 	if err != nil {
 		return "", err
 	}
@@ -115,7 +114,7 @@ func (b *Btcd) InitMempool() (err error) {
 
 	//TODO max waiting time
 	for {
-		if bal, err := b.Nodes[0].Client().GetBalance(importedAccount); err == nil && bal.ToBTC() > 101 {
+		if bal, err := b.Client(0).GetBalance(importedAccount); err == nil && bal.ToBTC() > 101 {
 			break
 		}
 		time.Sleep(time.Millisecond * 200)
