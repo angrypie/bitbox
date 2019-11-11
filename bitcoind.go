@@ -39,17 +39,19 @@ func (b *Bitcoind) Start(nodes int) (err error) {
 
 //Info returns information about bitbox state.
 func (b *Bitcoind) Info() *State {
-	var nodePort, zmqAddress string
+	var nodePort, zmqAddress, rpcPort string
 
 	if len(b.Nodes) > 0 {
 		info := b.Nodes[0].Info()
 		nodePort = info.NodePort
+		rpcPort = info.RPCPort
 		zmqAddress = info.ZmqAddress
 	}
 
 	return &State{
 		Name:        "bitcoind",
 		NodePort:    nodePort,
+		RPCPort:     rpcPort,
 		ZmqAddress:  zmqAddress,
 		IsStarted:   b.started,
 		NodesNumber: b.nodesNumber,
@@ -116,6 +118,7 @@ func (bn *bitcoindNode) Client() *rpcclient.Client {
 func (bn *bitcoindNode) Info() *State {
 	return &State{
 		NodePort:   bn.port,
+		RPCPort:    bn.rpcport,
 		ZmqAddress: bn.zmqaddress,
 	}
 }

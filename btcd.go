@@ -47,15 +47,18 @@ func (b *Btcd) Start(nodes int) (err error) {
 
 //Info returns information about bitbox state.
 func (b *Btcd) Info() (state *State) {
-	var rpcPort string
+	var nodePort, rpcPort string
 
 	if len(b.Nodes) > 0 {
-		rpcPort = b.Nodes[0].Info().NodePort
+		info := b.Nodes[0].Info()
+		nodePort = info.NodePort
+		rpcPort = info.RPCPort
 	}
 
 	return &State{
 		Name:        "btcd",
-		NodePort:    rpcPort,
+		NodePort:    nodePort,
+		RPCPort:     rpcPort,
 		IsStarted:   b.started,
 		NodesNumber: b.nodesNumber,
 		ZmqAddress:  "not supported",
@@ -153,6 +156,7 @@ func (bn *btcdNode) Client() *rpcclient.Client {
 func (bn *btcdNode) Info() *State {
 	return &State{
 		NodePort: bn.port,
+		RPCPort:  bn.rpcport,
 	}
 }
 

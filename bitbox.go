@@ -50,6 +50,7 @@ func New(args ...string) (bitbox Bitbox) {
 type State struct {
 	Name        string
 	NodePort    string
+	RPCPort     string
 	ZmqAddress  string
 	IsStarted   bool
 	NodesNumber int
