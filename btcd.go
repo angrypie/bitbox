@@ -11,12 +11,10 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/hdkeychain"
 	"github.com/google/uuid"
 )
 
 const defaultAccount = "default"
-const importedAccount = "imported"
 
 type Btcd struct {
 	BitboxDefaults
@@ -67,14 +65,6 @@ func (b *Btcd) Info() (state *State) {
 
 //Send sends funds from node to specified address.
 func (b *Btcd) Send(node int, address string, amount float64) (tx string, err error) {
-	return b.send(node, defaultAccount, address, amount)
-}
-
-func (b *Btcd) sendFromMiner(node int, address string, amount float64) (tx string, err error) {
-	return b.send(node, importedAccount, address, amount)
-}
-
-func (b *Btcd) send(node int, account, address string, amount float64) (tx string, err error) {
 	addr, err := btcutil.DecodeAddress(address, &chaincfg.SimNetParams)
 	if err != nil {
 		return
@@ -85,7 +75,7 @@ func (b *Btcd) send(node int, account, address string, amount float64) (tx strin
 		return
 	}
 
-	hash, err := b.Client(node).SendFrom(account, addr, btcAmount)
+	hash, err := b.Client(node).SendFrom(defaultAccount, addr, btcAmount)
 	if err != nil {
 		return "", err
 	}
@@ -117,14 +107,14 @@ func (b *Btcd) InitMempool() (err error) {
 
 	//TODO max waiting time
 	for {
-		if bal, err := b.Client(0).GetBalance(importedAccount); err == nil && bal.ToBTC() > 101 {
+		if bal, err := b.Balance(0); err == nil && bal > 101 {
 			break
 		}
 		time.Sleep(time.Millisecond * 200)
 	}
 
 	for i := 0; i < 50; i++ {
-		_, err := b.sendFromMiner(0, addr, 2)
+		_, err := b.Send(0, addr, 2)
 		if err != nil {
 			log.Println(err)
 		}
@@ -146,7 +136,6 @@ type btcdNode struct {
 	client         *rpcclient.Client
 	btcdCmd        *exec.Cmd
 	walletCmd      *exec.Cmd
-	btcKey         *btcKey
 }
 
 func (bn *btcdNode) Client() *rpcclient.Client {
@@ -164,7 +153,6 @@ func (bn *btcdNode) Start() (err error) {
 	opts := append([]string{},
 		"--simnet",
 		"--notls",
-		"--miningaddr="+bn.btcKey.Address().String(),
 		"--datadir="+bn.datadir,
 		"--listen=127.0.0.1:"+bn.port,
 		"--rpclisten=127.0.0.1:"+bn.rpcport,
@@ -211,6 +199,30 @@ func (bn *btcdNode) Start() (err error) {
 		log.Println("ERR starting starting wallet")
 		return
 	}
+	waitUntilNodeStart(bn)
+
+	addr, err := bn.Client().GetNewAddress(defaultAccount)
+	if err != nil {
+		log.Println("ERR starting node: getting address")
+		return
+	}
+
+	opts = append(opts, "--miningaddr="+addr.String())
+
+	err = procutil.Terminate(bn.btcdCmd.Process)
+	if err != nil {
+		log.Println("ERR starting node: terminating node")
+		return
+	}
+
+	bn.btcdCmd = exec.Command("btcd", opts...)
+	err = bn.btcdCmd.Start()
+	if err != nil {
+		log.Println("ERR starting btcd second time")
+		return
+	}
+
+	waitUntilNodeStart(bn)
 
 	return
 }
@@ -253,7 +265,6 @@ func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error)
 		port:           port,
 		rpcport:        rpcPort,
 		walletRPCPort:  walletPort,
-		btcKey:         newBtcKey(),
 		masterNodePort: masterNodePort,
 	}
 
@@ -264,14 +275,7 @@ func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error)
 		return
 	}
 
-	client, err := newRpcClient("127.0.0.1:" + node.rpcport)
-	if err != nil {
-		log.Println("ERR rpc client not connected to node ", index, err)
-		return
-	}
-
-	node.client = client
-	err = waitUntilNodeStart(node)
+	err = node.Start()
 	if err != nil {
 		return
 	}
@@ -281,37 +285,5 @@ func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error)
 		return
 	}
 
-	wif, err := node.btcKey.GetWIF()
-	if err != nil {
-		return
-	}
-
-	err = node.client.ImportPrivKey(wif)
-	if err != nil {
-		return
-	}
-
 	return
-}
-
-type btcKey struct {
-	key *hdkeychain.ExtendedKey
-	net *chaincfg.Params
-}
-
-func newBtcKey() *btcKey {
-	net := &chaincfg.SimNetParams
-	seed, _ := hdkeychain.GenerateSeed(hdkeychain.RecommendedSeedLen)
-	masterKey, _ := hdkeychain.NewMaster(seed, net)
-	return &btcKey{key: masterKey, net: net}
-}
-
-func (key *btcKey) Address() btcutil.Address {
-	addr, _ := key.key.Address(key.net)
-	return addr
-}
-
-func (key *btcKey) GetWIF() (wif *btcutil.WIF, err error) {
-	priv, _ := key.key.ECPrivKey()
-	return btcutil.NewWIF(priv, key.net, true)
 }

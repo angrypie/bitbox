@@ -2,7 +2,6 @@ package bitbox
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -21,28 +20,19 @@ func newRpcClient(host string) (client *rpcclient.Client, err error) {
 	return
 }
 
+//waitUntilNodeStart TODO set time limit
 func waitUntilNodeStart(node Node) (err error) {
-	err = node.Client().Ping()
-	if err != nil {
-		time.Sleep(time.Millisecond * 100)
-		err = node.Start()
+	for i := 0; ; i++ {
+		err = node.Client().Ping()
 		if err != nil {
-			log.Println("ERR starting daemon", err)
-			return
-		}
-
-		for i := 0; ; i++ {
-			time.Sleep(time.Millisecond * 100)
-			err = node.Client().Ping()
-			if err != nil {
-				if i == 40 {
-					fmt.Println("trying to get info", err)
-					i = 0
-				}
-				continue
+			if i == 40 {
+				fmt.Println("trying to get info", err)
+				i = 0
 			}
-			break
+			time.Sleep(time.Millisecond * 100)
+			continue
 		}
+		break
 	}
 
 	return
