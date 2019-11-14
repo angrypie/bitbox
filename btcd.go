@@ -1,7 +1,6 @@
 package bitbox
 
 import (
-	"errors"
 	"log"
 	"os/exec"
 
@@ -17,54 +16,15 @@ const defaultAccount = "default"
 
 type Btcd struct {
 	BitboxDefaults
-	started     bool
-	nodesNumber int
 }
 
 func newBtcd() *Btcd {
 	return &Btcd{}
 }
 
-//Start runs specified number of bitcoind nodes in regtest mode.
+//Start runs specified number of btcd nodes in simnet mode.
 func (b *Btcd) Start(nodes int) (err error) {
-	if nodes < 1 {
-		return errors.New("number of nodes should be greater than 0")
-	}
-
-	b.Nodes, err = newNodeSet(
-		nodes,
-		func(index int, masterNodePort string) (Node, error) {
-			return startBtcdNode(index, masterNodePort)
-		},
-	)
-	if err != nil {
-		return
-	}
-
-	b.started = true
-	b.nodesNumber = nodes
-
-	return
-}
-
-//Info returns information about bitbox state.
-func (b *Btcd) Info() (state *State) {
-	var nodePort, rpcPort string
-
-	if len(b.Nodes) > 0 {
-		info := b.Nodes[0].Info()
-		nodePort = info.NodePort
-		rpcPort = info.RPCPort
-	}
-
-	return &State{
-		Name:        "btcd",
-		NodePort:    nodePort,
-		RPCPort:     rpcPort,
-		IsStarted:   b.started,
-		NodesNumber: b.nodesNumber,
-		ZmqAddress:  "not supported",
-	}
+	return b.CreateNodes(nodes, startBtcdNode)
 }
 
 //Send sends funds from node to specified address.
@@ -120,8 +80,9 @@ func (node *btcdNode) Client() *rpcclient.Client {
 
 func (node *btcdNode) Info() *State {
 	return &State{
-		NodePort: node.port,
-		RPCPort:  node.rpcport,
+		NodePort:   node.port,
+		RPCPort:    node.rpcport,
+		ZmqAddress: "not supported",
 	}
 }
 
@@ -217,7 +178,7 @@ func (node *btcdNode) Stop() (err error) {
 	return
 }
 
-func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error) {
+func startBtcdNode(index int, masterNodePort string) (node Node, err error) {
 	strIndex := uuid.New().String()
 	datadir := "/tmp/bitbox_btcd_" + strIndex
 
@@ -246,7 +207,7 @@ func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error)
 		return
 	}
 
-	err = node.client.WalletPassphrase("password", 1e6)
+	err = node.Client().WalletPassphrase("password", 1e6)
 	if err != nil {
 		return
 	}

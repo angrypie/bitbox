@@ -1,7 +1,6 @@
 package bitbox
 
 import (
-	"errors"
 	"log"
 	"os/exec"
 
@@ -12,8 +11,6 @@ import (
 
 type Bitcoind struct {
 	BitboxDefaults
-	started     bool
-	nodesNumber int
 }
 
 func newBitcoind() *Bitcoind {
@@ -22,45 +19,7 @@ func newBitcoind() *Bitcoind {
 
 //Start runs specified number of bitcoind nodes in regtest mode.
 func (b *Bitcoind) Start(nodes int) (err error) {
-	if nodes < 1 {
-		return errors.New("number of nodes should be greater than 0")
-	}
-
-	b.Nodes, err = newNodeSet(
-		nodes,
-		func(index int, masterNodePort string) (Node, error) {
-			return startBitcoindNode(index, masterNodePort)
-		},
-	)
-	if err != nil {
-		return
-	}
-
-	b.started = true
-	b.nodesNumber = nodes
-
-	return
-}
-
-//Info returns information about bitbox state.
-func (b *Bitcoind) Info() *State {
-	var nodePort, zmqAddress, rpcPort string
-
-	if len(b.Nodes) > 0 {
-		info := b.Nodes[0].Info()
-		nodePort = info.NodePort
-		rpcPort = info.RPCPort
-		zmqAddress = info.ZmqAddress
-	}
-
-	return &State{
-		Name:        "bitcoind",
-		NodePort:    nodePort,
-		RPCPort:     rpcPort,
-		ZmqAddress:  zmqAddress,
-		IsStarted:   b.started,
-		NodesNumber: b.nodesNumber,
-	}
+	return b.CreateNodes(nodes, startBitcoindNode)
 }
 
 //Balance returns avaliable balance of specified nodes wallet.
@@ -154,7 +113,7 @@ func (node *bitcoindNode) Command(cmd ...string) error {
 	return err
 }
 
-func startBitcoindNode(index int, masterNodePort string) (node *bitcoindNode, err error) {
+func startBitcoindNode(index int, masterNodePort string) (node Node, err error) {
 	//run bitcoin test box
 	strIndex := uuid.New().String()
 	datadir := "/tmp/bitbox_bitcoind_" + strIndex

@@ -64,7 +64,9 @@ type Node interface {
 }
 
 type BitboxDefaults struct {
-	Nodes []Node
+	Nodes       []Node
+	NodesNumber int
+	Started     bool
 }
 
 //Stop terminates all nodes, nnd cleans data directories.
@@ -156,4 +158,41 @@ func (b *BitboxDefaults) Client(nodeIndex int) *rpcclient.Client {
 		return nil
 	}
 	return b.Nodes[nodeIndex].Client()
+}
+
+//Start runs specified number of bitcoin nodes in regtest/simnet mode.
+func (b *BitboxDefaults) CreateNodes(nodes int, create createNodeFunc) (err error) {
+	if nodes < 1 {
+		return errors.New("number of nodes should be greater than 0")
+	}
+
+	b.Nodes, err = newNodeSet(nodes, create)
+	if err != nil {
+		return
+	}
+
+	b.Started = true
+	b.NodesNumber = nodes
+
+	return
+}
+
+//Info returns information about bitbox state.
+func (b *BitboxDefaults) Info() *State {
+	var nodePort, zmqAddress, rpcPort string
+
+	if len(b.Nodes) > 0 {
+		info := b.Nodes[0].Info()
+		nodePort = info.NodePort
+		rpcPort = info.RPCPort
+		zmqAddress = info.ZmqAddress
+	}
+
+	return &State{
+		NodePort:    nodePort,
+		RPCPort:     rpcPort,
+		ZmqAddress:  zmqAddress,
+		IsStarted:   b.Started,
+		NodesNumber: b.NodesNumber,
+	}
 }
