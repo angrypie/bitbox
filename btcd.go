@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"os/exec"
-	"time"
 
 	"github.com/angrypie/procutil"
 	"github.com/angrypie/rndport"
@@ -32,7 +31,12 @@ func (b *Btcd) Start(nodes int) (err error) {
 		return errors.New("number of nodes should be greater than 0")
 	}
 
-	b.Nodes, err = newBtcdNodeSet(nodes)
+	b.Nodes, err = newNodeSet(
+		nodes,
+		func(index int, masterNodePort string) (Node, error) {
+			return startBtcdNode(index, masterNodePort)
+		},
+	)
 	if err != nil {
 		return
 	}
@@ -94,36 +98,8 @@ func (b *Btcd) Address(node int) (address string, err error) {
 }
 
 //InitMempool makes mempool usable by sending transaction and generating blocks.
-func (b *Btcd) InitMempool() (err error) {
-	err = b.Generate(0, 200)
-	if err != nil {
-		return err
-	}
-
-	addr, err := b.Address(0)
-	if err != nil {
-		return err
-	}
-
-	//TODO max waiting time
-	for {
-		if bal, err := b.Balance(0); err == nil && bal > 101 {
-			break
-		}
-		time.Sleep(time.Millisecond * 200)
-	}
-
-	for i := 0; i < 50; i++ {
-		_, err := b.Send(0, addr, 2)
-		if err != nil {
-			log.Println(err)
-		}
-		err = b.Generate(0, 1)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	return
+func (b *Btcd) InitMempool() error {
+	return initBitboxMempool(b)
 }
 
 type btcdNode struct {
@@ -138,38 +114,38 @@ type btcdNode struct {
 	walletCmd      *exec.Cmd
 }
 
-func (bn *btcdNode) Client() *rpcclient.Client {
-	return bn.client
+func (node *btcdNode) Client() *rpcclient.Client {
+	return node.client
 }
 
-func (bn *btcdNode) Info() *State {
+func (node *btcdNode) Info() *State {
 	return &State{
-		NodePort: bn.port,
-		RPCPort:  bn.rpcport,
+		NodePort: node.port,
+		RPCPort:  node.rpcport,
 	}
 }
 
-func (bn *btcdNode) Start() (err error) {
+func (node *btcdNode) Start() (err error) {
 	opts := append([]string{},
 		"--simnet",
 		"--notls",
-		"--datadir="+bn.datadir,
-		"--listen=127.0.0.1:"+bn.port,
-		"--rpclisten=127.0.0.1:"+bn.rpcport,
+		"--datadir="+node.datadir,
+		"--listen=127.0.0.1:"+node.port,
+		"--rpclisten=127.0.0.1:"+node.rpcport,
 		"--rpcuser=test",
 		"--rpcpass=test",
 	)
 
-	if bn.index > 0 {
+	if node.index > 0 {
 		// First node will have empty masterNodePort but its' will not be executed
-		opts = append(opts, "--connect=127.0.0.1:"+bn.masterNodePort)
+		opts = append(opts, "--connect=127.0.0.1:"+node.masterNodePort)
 	} else {
 		opts = append(opts,
 			"--txindex",
 		)
 	}
-	bn.btcdCmd = exec.Command("btcd", opts...)
-	err = bn.btcdCmd.Start()
+	node.btcdCmd = exec.Command("btcd", opts...)
+	err = node.btcdCmd.Start()
 	if err != nil {
 		log.Println("ERR starting btcd")
 		return
@@ -180,28 +156,27 @@ func (bn *btcdNode) Start() (err error) {
 		"--createtemp",
 		"--noservertls",
 		"--noclienttls",
-		"--appdata="+bn.datadir,
-		"--rpcconnect=127.0.0.1:"+bn.rpcport,
-		"--rpclisten=127.0.0.1:"+bn.walletRPCPort,
+		"--appdata="+node.datadir,
+		"--rpcconnect=127.0.0.1:"+node.rpcport,
+		"--rpclisten=127.0.0.1:"+node.walletRPCPort,
 		"--username=test",
 		"--password=test",
 	)
 
-	bn.walletCmd = exec.Command("btcwallet", walletOpts...)
-	err = bn.walletCmd.Start()
+	node.walletCmd = exec.Command("btcwallet", walletOpts...)
+	err = node.walletCmd.Start()
 	if err != nil {
-		log.Println("ERR starting btcd")
+		log.Println("ERR starting btcwallet")
 		return
 	}
 
-	bn.client, err = newRpcClient("127.0.0.1:" + bn.walletRPCPort)
+	node.client, err = newRpcClient("127.0.0.1:" + node.walletRPCPort)
 	if err != nil {
-		log.Println("ERR starting starting wallet")
 		return
 	}
-	waitUntilNodeStart(bn)
+	waitUntilNodeStart(node)
 
-	addr, err := bn.Client().GetNewAddress(defaultAccount)
+	addr, err := node.Client().GetNewAddress(defaultAccount)
 	if err != nil {
 		log.Println("ERR starting node: getting address")
 		return
@@ -209,46 +184,37 @@ func (bn *btcdNode) Start() (err error) {
 
 	opts = append(opts, "--miningaddr="+addr.String())
 
-	err = procutil.Terminate(bn.btcdCmd.Process)
+	err = procutil.Terminate(node.btcdCmd.Process)
 	if err != nil {
 		log.Println("ERR starting node: terminating node")
 		return
 	}
 
-	bn.btcdCmd = exec.Command("btcd", opts...)
-	err = bn.btcdCmd.Start()
+	node.btcdCmd = exec.Command("btcd", opts...)
+	err = node.btcdCmd.Start()
 	if err != nil {
-		log.Println("ERR starting btcd second time")
+		log.Println("ERR starting btcd")
 		return
 	}
 
-	waitUntilNodeStart(bn)
+	waitUntilNodeStart(node)
 
 	return
 }
 
-func (bn *btcdNode) Stop() (err error) {
-	bn.client.Shutdown()
-	err = procutil.Terminate(bn.btcdCmd.Process)
+func (node *btcdNode) Stop() (err error) {
+	node.client.Shutdown()
+	err = procutil.Terminate(node.btcdCmd.Process)
 	if err != nil {
 		log.Println("ERR terminating btcd node process")
 	}
 
-	err = procutil.Terminate(bn.walletCmd.Process)
+	err = procutil.Terminate(node.walletCmd.Process)
 	if err != nil {
 		log.Println("ERR terminating wallet process")
 	}
-	exec.Command("rm", "-rf", bn.datadir).Run()
+	exec.Command("rm", "-rf", node.datadir).Run()
 	return
-}
-
-func newBtcdNodeSet(number int) (nodes []Node, err error) {
-	return newNodeSet(
-		number,
-		func(index int, masterNodePort string) (Node, error) {
-			return startBtcdNode(index, masterNodePort)
-		},
-	)
 }
 
 func startBtcdNode(index int, masterNodePort string) (node *btcdNode, err error) {

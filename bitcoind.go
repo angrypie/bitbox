@@ -26,7 +26,12 @@ func (b *Bitcoind) Start(nodes int) (err error) {
 		return errors.New("number of nodes should be greater than 0")
 	}
 
-	b.Nodes, err = newBitcoindNodeSet(nodes)
+	b.Nodes, err = newNodeSet(
+		nodes,
+		func(index int, masterNodePort string) (Node, error) {
+			return startBitcoindNode(index, masterNodePort)
+		},
+	)
 	if err != nil {
 		return
 	}
@@ -69,36 +74,8 @@ func (b *Bitcoind) Address(node int) (address string, err error) {
 }
 
 //InitMempool makes mempool usable by sending transaction and generating blocks.
-func (b *Bitcoind) InitMempool() (err error) {
-	err = b.Generate(0, 150)
-	if err != nil {
-		return err
-	}
-	addr, err := b.Address(0)
-	if err != nil {
-		return err
-	}
-
-	height, err := b.BlockHeight()
-	if err != nil {
-		return err
-	}
-
-	if height >= 200 {
-		return
-	}
-	for i := 0; i < 50; i++ {
-		_, err := b.Send(0, addr, 0.00001)
-		if err != nil {
-			log.Println(err)
-		}
-		err = b.Generate(0, 1)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
-	return nil
+func (b *Bitcoind) InitMempool() error {
+	return initBitboxMempool(b)
 }
 
 type bitcoindNode struct {
@@ -111,45 +88,35 @@ type bitcoindNode struct {
 	masterNodePort string
 }
 
-func (bn *bitcoindNode) Client() *rpcclient.Client {
-	return bn.client
+func (node *bitcoindNode) Client() *rpcclient.Client {
+	return node.client
 }
 
-func (bn *bitcoindNode) Info() *State {
+func (node *bitcoindNode) Info() *State {
 	return &State{
-		NodePort:   bn.port,
-		RPCPort:    bn.rpcport,
-		ZmqAddress: bn.zmqaddress,
+		NodePort:   node.port,
+		RPCPort:    node.rpcport,
+		ZmqAddress: node.zmqaddress,
 	}
 }
 
-func newBitcoindNodeSet(number int) (nodes []Node, err error) {
-	return newNodeSet(
-		number,
-		func(index int, masterNodePort string) (Node, error) {
-			return startBitcoindNode(index, masterNodePort)
-		},
-	)
-}
-
-func (bn *bitcoindNode) Start() error {
-	//TODO
+func (node *bitcoindNode) Start() (err error) {
 	zmqPort, err := rndport.GetAddress()
 	if err != nil {
 		return err
 	}
 	zmqaddress := "127.0.0.1:" + zmqPort
-	bn.zmqaddress = zmqaddress
+	node.zmqaddress = zmqaddress
 	opts := append([]string{}, "-regtest", "-daemon",
 		"-deprecatedrpc=estimatefee,generate",
 		"-deprecatedrpc=generate",
-		"-datadir="+bn.datadir, "-port="+bn.port,
-		"-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test",
+		"-datadir="+node.datadir, "-port="+node.port,
+		"-rpcport="+node.rpcport, "-rpcuser=test", "-rpcpassword=test",
 	)
 
-	if bn.index > 0 {
+	if node.index > 0 {
 		// First node will have empty masterNodeport but its' will not be executed
-		opts = append(opts, "-connect=127.0.0.1:"+bn.masterNodePort)
+		opts = append(opts, "-connect=127.0.0.1:"+node.masterNodePort)
 	} else {
 		opts = append(opts,
 			"-zmqpubhashtx=tcp://"+zmqaddress,
@@ -159,19 +126,29 @@ func (bn *bitcoindNode) Start() error {
 			"-txindex=1",
 		)
 	}
+	err = exec.Command("bitcoind", opts...).Run()
+	if err != nil {
+		return
+	}
 
-	return exec.Command("bitcoind", opts...).Run()
+	node.client, err = newRpcClient("127.0.0.1:" + node.rpcport)
+	if err != nil {
+		log.Println("ERR rpc client not connected to node ", node.index, err)
+		return
+	}
+
+	return waitUntilNodeStart(node)
 }
 
-func (bn *bitcoindNode) Stop() (err error) {
-	bn.client.Shutdown()
-	bn.Command("stop")
-	exec.Command("rm", "-rf", bn.datadir).Run()
+func (node *bitcoindNode) Stop() (err error) {
+	node.client.Shutdown()
+	node.Command("stop")
+	exec.Command("rm", "-rf", node.datadir).Run()
 	return
 }
 
-func (bn *bitcoindNode) Command(cmd ...string) error {
-	args := append([]string{}, "-rpcport="+bn.rpcport, "-rpcuser=test", "-rpcpassword=test")
+func (node *bitcoindNode) Command(cmd ...string) error {
+	args := append([]string{}, "-rpcport="+node.rpcport, "-rpcuser=test", "-rpcpassword=test")
 	full := append(args, cmd...)
 	_, err := exec.Command("bitcoin-cli", full...).Output()
 	return err
@@ -199,14 +176,7 @@ func startBitcoindNode(index int, masterNodePort string) (node *bitcoindNode, er
 		return
 	}
 
-	client, err := newRpcClient("127.0.0.1:" + node.rpcport)
-	if err != nil {
-		log.Println("ERR rpc client not connected to node ", index, err)
-		return
-	}
-	node.client = client
-
-	err = waitUntilNodeStart(node)
+	err = node.Start()
 	if err != nil {
 		return
 	}

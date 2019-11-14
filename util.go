@@ -2,6 +2,7 @@ package bitbox
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -64,5 +65,37 @@ func newNodeSet(number int, createNode createNodeFunc) (nodes []Node, err error)
 		}()
 	}
 	wg.Wait()
+	return
+}
+
+func initBitboxMempool(b Bitbox) (err error) {
+	err = b.Generate(0, 200)
+	if err != nil {
+		return err
+	}
+
+	addr, err := b.Address(0)
+	if err != nil {
+		return err
+	}
+
+	//TODO max waiting time
+	for {
+		if bal, err := b.Balance(0); err == nil && bal > 101 {
+			break
+		}
+		time.Sleep(time.Millisecond * 200)
+	}
+
+	for i := 0; i < 50; i++ {
+		_, err := b.Send(0, addr, 2)
+		if err != nil {
+			log.Println(err)
+		}
+		err = b.Generate(0, 1)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	return
 }
