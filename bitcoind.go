@@ -6,7 +6,6 @@ import (
 
 	"github.com/angrypie/rndport"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/google/uuid"
 )
 
 type Bitcoind struct {
@@ -113,11 +112,9 @@ func (node *bitcoindNode) Command(cmd ...string) error {
 	return err
 }
 
-func startBitcoindNode(index int, masterNodePort string) (node Node, err error) {
-	//run bitcoin test box
-	strIndex := uuid.New().String()
+func startBitcoindNode(index int, masterNodePort, strIndex string) (node Node, err error) {
 	datadir := "/tmp/bitbox_bitcoind_" + strIndex
-	//TODO check errors
+
 	port, _ := rndport.GetAddress()
 	rpcPort, _ := rndport.GetAddress()
 	node = &bitcoindNode{

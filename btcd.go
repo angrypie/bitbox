@@ -9,7 +9,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
-	"github.com/google/uuid"
 )
 
 const defaultAccount = "default"
@@ -178,8 +177,7 @@ func (node *btcdNode) Stop() (err error) {
 	return
 }
 
-func startBtcdNode(index int, masterNodePort string) (node Node, err error) {
-	strIndex := uuid.New().String()
+func startBtcdNode(index int, masterNodePort, strIndex string) (node Node, err error) {
 	datadir := "/tmp/bitbox_btcd_" + strIndex
 
 	port, _ := rndport.GetAddress()

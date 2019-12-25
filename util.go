@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/google/uuid"
 )
 
 func newRpcClient(host string) (client *rpcclient.Client, err error) {
@@ -39,11 +40,16 @@ func waitUntilNodeStart(node Node) (err error) {
 	return
 }
 
-type createNodeFunc = func(index int, masterNodePort string) (Node, error)
+type createNodeFunc = func(index int, masterNodePort, strIndex string) (Node, error)
 
 func newNodeSet(number int, createNode createNodeFunc) (nodes []Node, err error) {
+	sessionID := uuid.New().String()
+	getStrIndex := func(index int) string {
+		return fmt.Sprintf("%s_%d", sessionID, index)
+	}
+
 	var masterNodePort string
-	node, err := createNode(0, "")
+	node, err := createNode(0, "", getStrIndex(0))
 	if err != nil {
 		return
 	}
@@ -56,7 +62,7 @@ func newNodeSet(number int, createNode createNodeFunc) (nodes []Node, err error)
 	for i := 1; i < int(number); i++ {
 		i := i
 		go func() {
-			node, err = createNode(i, masterNodePort)
+			node, err = createNode(i, masterNodePort, getStrIndex(i))
 			if err != nil {
 				return
 			}
